@@ -211,7 +211,6 @@
                     <input type="text" id="room-input" placeholder="ör: matematik" class="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none transition font-mono text-sm">
                     <p id="room-hint" class="text-[10px] text-gray-500 mt-1 ml-1">* Oda kodu otomatik küçük harfe çevrilir.</p>
                 </div>
-                <!-- Buton Grubu: ID eklendi ki JS ile yönetelim -->
                 <div id="button-group" class="grid grid-cols-2 gap-3 mt-2">
                     <button id="create-btn" class="group relative px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-semibold transition overflow-hidden">
                         <span id="btn-create-text" class="relative flex items-center justify-center gap-2 text-sm"><i class="fas fa-chalkboard-teacher"></i> Kur (Hoca)</span>
@@ -343,7 +342,6 @@
             pCount: document.getElementById('participant-count')
         };
 
-        // --- GÜNCELLEME: Konfigürasyon ve Link Mantığı Tek Fonksiyonda ---
         async function loadConfig() {
             try {
                 const response = await fetch('config.json');
@@ -358,26 +356,21 @@
             els.welcomeMsg.innerText = config.messages.welcome;
             els.nickInput.placeholder = `Örn: ${config.teacherName}`;
             
-            // --- URL KONTROLÜ (CONFIG YÜKLENDİKTEN SONRA) ---
             const params = new URLSearchParams(window.location.search);
             const roomParam = params.get('room');
             
             if (roomParam) {
-                // Link varsa, URL'deki kodu kullan ve kilitle
                 els.roomInput.value = roomParam;
                 els.roomInput.setAttribute('disabled', 'true');
                 els.roomInput.classList.add('bg-gray-800', 'text-gray-400', 'cursor-not-allowed');
                 els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-link"></i> Davet linki algılandı.</span>';
                 
-                // Hoca butonunu gizle, Katıl butonunu tam boy yap
                 els.btnCreate.style.display = 'none';
                 els.btnGroup.classList.remove('grid-cols-2');
                 els.btnGroup.classList.add('grid-cols-1');
                 
-                // Odağa al
                 setTimeout(() => els.nickInput.focus(), 500);
             } else {
-                // Link yoksa varsayılanı kullan
                 els.roomInput.value = config.defaultRoom;
             }
 
@@ -503,8 +496,11 @@
             });
             
             state.peer.on('error', (err) => {
-                if(err.type === 'unavailable-id' || err.type === 'peer-unavailable') {
-                    alert("Bağlantı hatası veya oda dolu/yok.");
+                if(err.type === 'unavailable-id') {
+                    alert("Bu oda kodu şu an kullanımda. 10 saniye bekleyip tekrar deneyin.");
+                    location.reload();
+                } else if (err.type === 'peer-unavailable') {
+                    alert("Ders henüz başlatılmadı. Lütfen öğretmenin girmesini bekleyin.");
                     resetUI();
                 }
             });
@@ -714,7 +710,7 @@
         window.addEventListener("beforeunload", () => { if (state.peer) state.peer.destroy(); });
         
         window.addEventListener('load', () => {
-            loadConfig(); // Tüm mantık burada toparlandı
+            loadConfig(); 
             getMediaStream();
         });
 
