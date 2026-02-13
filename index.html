@@ -44,56 +44,76 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* --- AKILLI GRİD SİSTEMİ --- */
+        /* --- AKILLI GRİD VE SAHNE SİSTEMİ --- */
         #video-grid {
             display: grid;
             gap: 12px;
             padding: 12px;
             width: 100%;
             height: 100%;
-            /* Varsayılan: Standart Grid */
-            grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-            grid-auto-rows: minmax(0, 1fr);
+            overflow-y: auto; /* İçerik taşarsa grid içinde scroll olsun */
+            
+            /* Varsayılan Mod: Herkes Eşit */
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-auto-rows: minmax(200px, 1fr);
             align-content: center;
-            transition: all 0.5s ease;
+            transition: all 0.3s ease;
         }
 
-        /* EKRAN PAYLAŞIMI MODU (SPOTLIGHT) */
+        /* --- SPOTLIGHT MODE (EKRAN PAYLAŞIMI AKTİFKEN) --- */
         #video-grid.spotlight-mode {
-            /* Mobilde alt alta, Masaüstünde Yan Yana */
-            display: flex;
-            flex-direction: column;
+            /* MASAÜSTÜ: Sol Ekran, Sağ Sütun */
+            display: grid;
+            grid-template-columns: 1fr 280px; 
+            grid-template-rows: repeat(auto-fill, 180px); /* Kameralar sabit boy */
+            align-content: start; /* Yukarı yasla */
+            grid-auto-flow: row dense; /* Boşlukları doldur */
         }
 
-        @media (min-width: 768px) {
+        /* Ekran Paylaşımı Kutusu (Özel Ayarlar) */
+        .video-container.is-screen-share {
+            border: 2px solid #3b82f6;
+            background: #000;
+            z-index: 10;
+        }
+
+        /* Spotlight Modunda Ekran Paylaşımı Nasıl Davranacak? */
+        #video-grid.spotlight-mode .video-container.is-screen-share {
+            grid-column: 1 / 2; /* İlk sütunu tamamen kapla */
+            grid-row: 1 / span 50; /* Tüm satırları kapla (Sol taraf boydan boya) */
+            height: calc(100vh - 160px); /* Alt/Üst barlar hariç tam boy */
+            position: sticky; /* Aşağı kaydırılsa bile ekranda kalsın */
+            top: 0;
+        }
+
+        /* Spotlight Modunda Diğer Kameralar */
+        #video-grid.spotlight-mode .video-container:not(.is-screen-share) {
+            grid-column: 2 / 3; /* İkinci sütuna zorla */
+            height: 180px; /* Sabit yükseklik */
+            width: 100%;
+        }
+
+        /* MOBİL UYUMU İÇİN MEDYA SORGUSU */
+        @media (max-width: 768px) {
             #video-grid.spotlight-mode {
-                display: grid;
-                grid-template-columns: 1fr 300px; /* Sol büyük, Sağ sütun */
-                grid-template-rows: 1fr;
+                grid-template-columns: 1fr; /* Tek sütun */
+                grid-template-rows: 40vh auto; /* Üstte ekran, altta kameralar */
+            }
+            
+            #video-grid.spotlight-mode .video-container.is-screen-share {
+                grid-column: 1 / -1;
+                grid-row: 1 / 2;
+                height: 40vh; /* Mobilde ekranın %40'ı */
+                position: relative;
+            }
+
+            #video-grid.spotlight-mode .video-container:not(.is-screen-share) {
+                grid-column: 1 / -1; /* Tam genişlik */
+                height: 150px;
             }
         }
 
-        /* Ekran Paylaşımı Kutusu (Spotlight'ta) */
-        .video-container.is-screen-share {
-            /* Grid modundayken normal davranır */
-            order: -1; /* Her zaman en başa al */
-            border: 2px solid #3b82f6; /* Mavi çerçeve ile belli et */
-        }
-        
-        #video-grid.spotlight-mode .video-container.is-screen-share {
-            /* Spotlight modunda sol tarafı kapla */
-            grid-column: 1 / 2;
-            grid-row: 1 / -1;
-            width: 100%;
-            height: 100%;
-        }
-        
-        #video-grid.spotlight-mode .video-container:not(.is-screen-share) {
-            /* Diğerleri sağ sütuna */
-            max-height: 200px; /* Çok uzamasınlar */
-            width: 100%;
-        }
-
+        /* --- GENEL VİDEO STİLLERİ --- */
         .video-container {
             position: relative;
             border-radius: 12px;
@@ -110,14 +130,13 @@
         video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            z-index: 1;
+            object-fit: cover; /* Varsayılan: Yüzler için doldur */
             transition: object-fit 0.3s ease;
         }
         
         /* Ekran paylaşımı videosu her zaman sığdırılmalı */
         video.screen-content {
-            object-fit: contain !important;
+            object-fit: contain !important; /* Ekranı kesmeden sığdır */
             background-color: #000;
         }
         
@@ -134,15 +153,15 @@
             justify-content: center;
             z-index: 2; 
             display: none; 
-            padding: 20px;
+            padding: 10px;
         }
 
         .cam-placeholder img {
             width: 100%;
             height: 100%;
-            max-width: 300px;
+            max-width: 150px;
             object-fit: contain;
-            margin-bottom: 10px;
+            opacity: 0.8;
         }
 
         .video-container.cam-off .cam-placeholder {
@@ -286,7 +305,7 @@
         const state = { 
             localStream: null, 
             screenStream: null,
-            screenCalls: [], // Ekran paylaşımı çağrılarını takip etmek için
+            screenCalls: [], 
             peer: null, 
             activeCalls: {},
             dataConnections: {}, 
@@ -435,14 +454,10 @@
                 setupDataListener(conn);
             });
 
-            // ARAMA ALMA (KAMERA VEYA EKRAN)
+            // ARAMA ALMA
             state.peer.on('call', (call) => {
-                // Eğer bu bir ekran paylaşımı aramasıysa (metadata kontrolü)
                 const isScreenShare = call.metadata && call.metadata.type === 'screen';
                 
-                // Cevap ver (Bizim stream'i göndermeye gerek yok ekran paylaşımı alırken, ama PeerJS null sevmez)
-                // Bu yüzden ekran paylaşımını alırken null ile cevap veriyoruz (receive-only)
-                // Ama normal aramada kendi stream'imizi gönderiyoruz.
                 if(isScreenShare) {
                     call.answer(); 
                 } else {
@@ -517,7 +532,6 @@
                 if(data.type === 'cam-status') {
                     togglePeerVideoPlaceholder(conn.peer, data.enabled);
                 }
-                // Eski screen-share-status koduna gerek kalmadı çünkü artık yeni kutu açıyoruz
             });
         }
 
@@ -578,7 +592,7 @@
             updateLayout();
         }
 
-        // --- YENİ EKRAN PAYLAŞIMI MANTIĞI ---
+        // --- EKRAN PAYLAŞIMI ---
         els.btnScreen.addEventListener('click', async () => {
             if (state.screenStream) {
                 // DURDUR
@@ -587,11 +601,9 @@
                 els.btnScreen.classList.remove('bg-blue-600', 'text-white');
                 els.btnScreen.classList.add('bg-gray-700');
                 
-                // Ekran kutusunu kaldır
                 const screenDiv = document.getElementById('vid-myscreen');
                 if(screenDiv) screenDiv.remove();
 
-                // Tüm ekran çağrılarını kapat
                 state.screenCalls.forEach(call => call.close());
                 state.screenCalls = [];
                 
@@ -603,17 +615,13 @@
                     const stream = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
                     state.screenStream = stream;
                     const screenTrack = stream.getVideoTracks()[0];
-                    
-                    // Tarayıcıdan durdurulursa
                     screenTrack.onended = () => els.btnScreen.click();
                     
                     els.btnScreen.classList.remove('bg-gray-700');
                     els.btnScreen.classList.add('bg-blue-600', 'text-white');
                     
-                    // Kendi ekranımıza yeni kutu ekle
                     addVideo(stream, "Ekran Paylaşımı (Sen)", true, 'myscreen', true);
                     
-                    // Diğerlerine YENİ bir çağrı başlat (Metadata ile)
                     state.participants.forEach(p => {
                         if (p.id !== 'me') {
                             const call = state.peer.call(p.id, stream, { 
@@ -629,10 +637,9 @@
             }
         });
 
-        // --- GRID DÜZENİ GÜNCELLEME ---
+        // --- GRID DÜZENİ GÜNCELLEME (YENİLENMİŞ) ---
         function updateLayout() {
             const grid = els.videoGrid;
-            // Ekran paylaşımı var mı kontrol et
             const screenShareEl = grid.querySelector('.is-screen-share');
             
             if (screenShareEl) {
@@ -640,13 +647,10 @@
             } else {
                 grid.classList.remove('spotlight-mode');
                 
-                // Standart Grid Hesabı
+                // Normal Grid
                 const children = grid.children.length;
-                let cols = 1;
-                if (children > 1) cols = 2;
-                if (children > 4) cols = 3;
-                if (children > 9) cols = 4;
-                grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+                grid.style.gridTemplateColumns = `repeat(auto-fit, minmax(300px, 1fr))`;
+                grid.style.gridTemplateRows = `repeat(auto-fit, minmax(200px, 1fr))`;
             }
         }
 
@@ -673,7 +677,6 @@
             video.playsInline = true;
             if (isMuted) video.muted = true;
             
-            // Ayna modu sadece KENDİ KAMERAN ise olsun, ekran paylaşımı veya başkası ise olmasın
             if (id === 'me' && !isScreenShare) video.classList.add('mirror-mode');
             
             if (isScreenShare) video.classList.add('screen-content');
