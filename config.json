@@ -1,7 +1,7 @@
 {
-  "appTitle": "Ali Hoca - Akademi",
-  "teacherName": "Ali Hoca",
-  "defaultRoom": "Matematik101",
+  "appTitle": "MATOTA Online Eğitim",
+  "teacherName": "Mustafa Kemal",
+  "defaultRoom": "matematik",
   "theme": {
     "primaryColor": "blue",
     "backgroundStyle": "gradient"
