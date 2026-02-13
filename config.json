@@ -1,0 +1,18 @@
+{
+  "appTitle": "Ali Hoca - Akademi",
+  "teacherName": "Ali Hoca",
+  "defaultRoom": "Matematik101",
+  "theme": {
+    "primaryColor": "blue",
+    "backgroundStyle": "gradient"
+  },
+  "features": {
+    "allowGuestEntry": true,
+    "defaultMute": true
+  },
+  "messages": {
+    "welcome": "Premium Ders Platformuna Hoşgeldiniz",
+    "teacherLabel": "Eğitmen",
+    "studentLabel": "Öğrenci"
+  }
+}
