@@ -44,7 +44,6 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* --- ANA ALANLAR --- */
         main {
             position: relative;
             flex: 1;
@@ -111,7 +110,6 @@
             #sidebar-area .video-container { min-width: 120px; height: 100%; }
         }
 
-        /* --- VİDEO STİLLERİ --- */
         .video-container {
             position: relative;
             border-radius: 12px;
@@ -238,7 +236,6 @@
                     <div class="flex items-center gap-1.5 text-[10px] text-gray-400">
                         <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> 
                         <span id="conn-status">Bağlantı Kuruluyor...</span>
-                        <!-- SAYAÇ (Sadece Hoca'da Görünür) -->
                         <span id="meeting-timer" class="hidden ml-2 font-mono text-blue-400 font-bold border-l border-white/10 pl-2">00:00:00</span>
                     </div>
                 </div>
@@ -338,7 +335,7 @@
             btnLeave: document.getElementById('leave-btn'),
             roomTitle: document.getElementById('room-title'),
             status: document.getElementById('conn-status'),
-            timer: document.getElementById('meeting-timer'), // Yeni Sayaç
+            timer: document.getElementById('meeting-timer'),
             sidebar: document.getElementById('participants-sidebar'),
             pList: document.getElementById('participants-list'),
             pCount: document.getElementById('participant-count')
@@ -393,7 +390,6 @@
             e.target.value = val.replace(/[^a-z0-9]/g, '');
         });
 
-        // --- SAYAÇ FONKSİYONLARI ---
         function startTimer() {
             state.startTime = Date.now();
             state.timerInterval = setInterval(() => {
@@ -430,7 +426,6 @@
             els.room.classList.remove('hidden');
             els.roomTitle.innerText = `MATOTA / ${roomVal}`;
 
-            // --- SAYAÇ BAŞLATMA (SADECE HOCA) ---
             if (asTeacher) {
                 els.timer.classList.remove('hidden');
                 startTimer();
@@ -499,7 +494,6 @@
             resetButton(els.btnCreate, els.btnCreateText, '<i class="fas fa-chalkboard-teacher"></i> Kur (Hoca)');
             resetButton(els.btnJoin, els.btnJoinText, '<i class="fas fa-user-graduate"></i> Katıl (Öğrenci)');
             if(state.peer) state.peer.destroy();
-            // Sayacı sıfırla
             if(state.timerInterval) clearInterval(state.timerInterval);
             els.timer.classList.add('hidden');
             els.timer.innerText = "00:00:00";
@@ -512,10 +506,9 @@
                 updateParticipantsList(hostId, config.messages.teacherLabel, true);
                 els.status.innerText = "Canlı Yayın";
             });
-            // --- HOCA AYRILINCA ÖĞRENCİYİ ATMA KODU ---
             call.on('close', () => {
                 alert("Öğretmen dersi sonlandırdı. Çıkış yapılıyor...");
-                location.reload(); // Öğrenci sayfayı yenileyerek sistemden atılır
+                location.reload();
             });
             state.activeCalls[hostId] = call;
             const conn = state.peer.connect(hostId);
@@ -692,7 +685,23 @@
 
         els.btnLeave.addEventListener('click', () => location.reload());
         window.addEventListener("beforeunload", () => { if (state.peer) state.peer.destroy(); });
-        window.addEventListener('load', () => { loadConfig(); getMediaStream(); });
+        
+        // --- GÜNCELLEME: LINK ALGILAMA ---
+        window.addEventListener('load', () => {
+            loadConfig();
+            getMediaStream();
+            
+            // Oda parametresi var mı kontrol et
+            const params = new URLSearchParams(window.location.search);
+            const roomParam = params.get('room');
+            if (roomParam) {
+                // Inputu doldur
+                els.roomInput.value = roomParam;
+                // Kullanıcı ismine odaklan ki hemen yazıp girsin
+                els.nickInput.focus();
+            }
+        });
+
     </script>
 </body>
 </html>
