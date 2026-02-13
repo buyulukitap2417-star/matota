@@ -470,6 +470,14 @@
                     }
                 });
                 if (!isScreenShare) state.activeCalls[call.peer] = call;
+
+                // **DÜZELTME: Ekran paylaşımı kapandığında kutuyu sil**
+                call.on('close', () => {
+                    const removeId = isScreenShare ? `screen-${call.peer}` : call.peer;
+                    document.getElementById(`vid-${removeId}`)?.remove();
+                    if (!isScreenShare) removeParticipant(call.peer);
+                    recalculateLayout();
+                });
             });
             
             state.peer.on('error', (err) => {
