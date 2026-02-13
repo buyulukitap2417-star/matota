@@ -50,10 +50,10 @@
             flex: 1;
             width: 100%;
             overflow: hidden;
-            display: flex; /* İçerik yönetimi için flex */
+            display: flex;
         }
 
-        /* 1. STANDART GRID MODU (Herkes Eşit) */
+        /* 1. STANDART GRID MODU */
         #standard-grid {
             display: grid;
             gap: 12px;
@@ -66,27 +66,25 @@
             align-content: center;
         }
 
-        /* 2. SUNUM MODU (Google Meet Yapısı) */
+        /* 2. SUNUM MODU */
         #presentation-layout {
-            display: none; /* Varsayılan gizli */
+            display: none;
             width: 100%;
             height: 100%;
-            flex-direction: row; /* Yan yana */
+            flex-direction: row;
         }
 
-        /* Sol Taraf: SAHNE (Ekran Paylaşımı) */
         #stage-area {
-            flex: 1; /* Kalan tüm alanı kapla */
+            flex: 1;
             background: #000;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 10px;
             position: relative;
-            overflow: hidden; /* Asla taşma yapma */
+            overflow: hidden;
         }
 
-        /* Sağ Taraf: KENAR ÇUBUĞU (Kameralar) */
         #sidebar-area {
             width: 300px;
             background: #0f172a;
@@ -95,31 +93,25 @@
             flex-direction: column;
             padding: 10px;
             gap: 10px;
-            overflow-y: auto; /* Sadece burası kaydırılabilir */
-            flex-shrink: 0; /* Küçülme */
+            overflow-y: auto;
+            flex-shrink: 0;
         }
 
-        /* Mobil Uyumu */
         @media (max-width: 768px) {
-            #presentation-layout {
-                flex-direction: column; /* Mobilde alt alta */
-            }
+            #presentation-layout { flex-direction: column; }
             #sidebar-area {
                 width: 100%;
-                height: 120px; /* Altta şerit */
-                flex-direction: row; /* Yan yana sırala */
-                overflow-x: auto; /* Yana kaydır */
+                height: 120px;
+                flex-direction: row;
+                overflow-x: auto;
                 overflow-y: hidden;
                 border-left: none;
                 border-top: 1px solid rgba(255,255,255,0.1);
             }
-            #sidebar-area .video-container {
-                min-width: 120px; /* Mobilde kart genişliği */
-                height: 100%;
-            }
+            #sidebar-area .video-container { min-width: 120px; height: 100%; }
         }
 
-        /* --- GENEL VİDEO STİLLERİ --- */
+        /* --- VİDEO STİLLERİ --- */
         .video-container {
             position: relative;
             border-radius: 12px;
@@ -128,31 +120,28 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             width: 100%;
             height: 100%;
-            min-height: 150px; /* Sidebar'da çok küçülmesin */
+            min-height: 150px;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        /* Sahne Alanındaki Video (Ekran Paylaşımı) İçin Özel Stil */
         #stage-area video {
             width: 100%;
             height: 100%;
             max-width: 100%;
             max-height: 100%;
-            object-fit: contain !important; /* Asla kesilmesin, tam sığsın */
+            object-fit: contain !important;
         }
 
-        /* Diğer Videolar (Kameralar) */
         .video-container video {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Yüzler dolgun görünsün */
+            object-fit: cover;
         }
         
         .mirror-mode { transform: scaleX(-1); }
 
-        /* KAMERA KAPALI LOGOSU */
         .cam-placeholder {
             position: absolute;
             inset: 0;
@@ -176,12 +165,10 @@
 
         .video-container.cam-off .cam-placeholder { display: flex; }
         
-        /* Buton Stilleri */
         .btn-active { @apply bg-gray-700 hover:bg-gray-600 text-white; }
         .btn-inactive { @apply bg-red-600 hover:bg-red-700 text-white border-red-600; }
         .btn-loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; }
 
-        /* Sidebar */
         #participants-sidebar {
             transition: transform 0.3s ease-in-out;
             transform: translateX(100%);
@@ -191,7 +178,6 @@
 </head>
 <body class="h-screen w-screen flex flex-col">
 
-    <!-- Yükleme -->
     <div id="loader" class="fixed inset-0 z-[60] bg-gray-900 flex items-center justify-center">
         <div class="text-center">
             <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -250,7 +236,10 @@
                 <div>
                     <h2 id="room-title" class="font-bold text-white text-sm leading-tight">MATOTA</h2>
                     <div class="flex items-center gap-1.5 text-[10px] text-gray-400">
-                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> <span id="conn-status">Bağlantı Kuruluyor...</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> 
+                        <span id="conn-status">Bağlantı Kuruluyor...</span>
+                        <!-- SAYAÇ (Sadece Hoca'da Görünür) -->
+                        <span id="meeting-timer" class="hidden ml-2 font-mono text-blue-400 font-bold border-l border-white/10 pl-2">00:00:00</span>
                     </div>
                 </div>
             </div>
@@ -266,21 +255,11 @@
             </div>
         </header>
 
-        <!-- ANA GÖRÜNTÜ ALANI -->
         <main>
-            <!-- A: Standart Mod (Sadece Kameralar Varken) -->
-            <div id="standard-grid">
-                <!-- Videolar buraya eklenecek -->
-            </div>
-
-            <!-- B: Sunum Modu (Ekran Paylaşımı Varken) -->
+            <div id="standard-grid"></div>
             <div id="presentation-layout">
-                <div id="stage-area">
-                    <!-- Ekran Paylaşımı Buraya Taşınacak -->
-                </div>
-                <div id="sidebar-area">
-                    <!-- Kameralar Buraya Taşınacak -->
-                </div>
+                <div id="stage-area"></div>
+                <div id="sidebar-area"></div>
             </div>
         </main>
 
@@ -329,7 +308,9 @@
             isTeacher: false,
             isMicOn: true,
             isCamOn: true,
-            participants: [] 
+            participants: [],
+            timerInterval: null,
+            startTime: null
         };
 
         const els = {
@@ -357,6 +338,7 @@
             btnLeave: document.getElementById('leave-btn'),
             roomTitle: document.getElementById('room-title'),
             status: document.getElementById('conn-status'),
+            timer: document.getElementById('meeting-timer'), // Yeni Sayaç
             sidebar: document.getElementById('participants-sidebar'),
             pList: document.getElementById('participants-list'),
             pCount: document.getElementById('participant-count')
@@ -411,6 +393,19 @@
             e.target.value = val.replace(/[^a-z0-9]/g, '');
         });
 
+        // --- SAYAÇ FONKSİYONLARI ---
+        function startTimer() {
+            state.startTime = Date.now();
+            state.timerInterval = setInterval(() => {
+                const diff = Date.now() - state.startTime;
+                const date = new Date(diff);
+                const hh = String(Math.floor(diff / 3600000)).padStart(2, '0');
+                const mm = String(date.getUTCMinutes()).padStart(2, '0');
+                const ss = String(date.getUTCSeconds()).padStart(2, '0');
+                els.timer.innerText = `${hh}:${mm}:${ss}`;
+            }, 1000);
+        }
+
         async function startSession(asTeacher) {
             const btn = asTeacher ? els.btnCreate : els.btnJoin;
             const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
@@ -434,6 +429,12 @@
             els.lobby.classList.add('hidden');
             els.room.classList.remove('hidden');
             els.roomTitle.innerText = `MATOTA / ${roomVal}`;
+
+            // --- SAYAÇ BAŞLATMA (SADECE HOCA) ---
+            if (asTeacher) {
+                els.timer.classList.remove('hidden');
+                startTimer();
+            }
 
             updateParticipantsList('me', nickVal, asTeacher);
             addVideo(state.localStream, `${nickVal} (Sen)`, true, 'me', false);
@@ -471,7 +472,6 @@
                 });
                 if (!isScreenShare) state.activeCalls[call.peer] = call;
 
-                // **DÜZELTME: Ekran paylaşımı kapandığında kutuyu sil**
                 call.on('close', () => {
                     const removeId = isScreenShare ? `screen-${call.peer}` : call.peer;
                     document.getElementById(`vid-${removeId}`)?.remove();
@@ -499,6 +499,10 @@
             resetButton(els.btnCreate, els.btnCreateText, '<i class="fas fa-chalkboard-teacher"></i> Kur (Hoca)');
             resetButton(els.btnJoin, els.btnJoinText, '<i class="fas fa-user-graduate"></i> Katıl (Öğrenci)');
             if(state.peer) state.peer.destroy();
+            // Sayacı sıfırla
+            if(state.timerInterval) clearInterval(state.timerInterval);
+            els.timer.classList.add('hidden');
+            els.timer.innerText = "00:00:00";
         }
 
         function connectToHost(hostId) {
@@ -508,10 +512,10 @@
                 updateParticipantsList(hostId, config.messages.teacherLabel, true);
                 els.status.innerText = "Canlı Yayın";
             });
+            // --- HOCA AYRILINCA ÖĞRENCİYİ ATMA KODU ---
             call.on('close', () => {
-                document.getElementById(`vid-${hostId}`)?.remove();
-                removeParticipant(hostId);
-                alert("Öğretmen dersten ayrıldı.");
+                alert("Öğretmen dersi sonlandırdı. Çıkış yapılıyor...");
+                location.reload(); // Öğrenci sayfayı yenileyerek sistemden atılır
             });
             state.activeCalls[hostId] = call;
             const conn = state.peer.connect(hostId);
@@ -586,7 +590,6 @@
                 state.screenStream = null;
                 els.btnScreen.classList.remove('bg-blue-600', 'text-white');
                 els.btnScreen.classList.add('bg-gray-700');
-                
                 const screenDiv = document.getElementById('vid-myscreen');
                 if(screenDiv) screenDiv.remove();
                 state.screenCalls.forEach(call => call.close());
@@ -600,7 +603,6 @@
                     screenTrack.onended = () => els.btnScreen.click();
                     els.btnScreen.classList.remove('bg-gray-700');
                     els.btnScreen.classList.add('bg-blue-600', 'text-white');
-                    
                     addVideo(stream, "Ekran Paylaşımı (Sen)", true, 'myscreen', true);
                     state.participants.forEach(p => {
                         if (p.id !== 'me') {
@@ -612,30 +614,17 @@
             }
         });
 
-        // --- LAYOUT ENGINE (DOM TAŞIMA MANTIĞI) ---
         function recalculateLayout() {
-            // Ekran paylaşımı var mı kontrol et
             const screenShareEl = document.querySelector('.video-container.is-screen-share');
-            
             if (screenShareEl) {
-                // SUNUM MODU AKTİF
                 els.standardGrid.style.display = 'none';
                 els.presentationLayout.style.display = 'flex';
-
-                // 1. Ekran paylaşımını SAHNEYE taşı
                 els.stageArea.appendChild(screenShareEl);
-
-                // 2. Diğer tüm videoları SIDEBAR'a taşı
-                // Mevcut tüm videoları bul (standardGrid içindeki ve sidebar içindeki)
                 const allVideos = document.querySelectorAll('.video-container:not(.is-screen-share)');
                 allVideos.forEach(vid => els.sidebarArea.appendChild(vid));
-
             } else {
-                // STANDART MOD AKTİF
                 els.presentationLayout.style.display = 'none';
                 els.standardGrid.style.display = 'grid';
-
-                // Tüm videoları (ekran paylaşımı zaten yok) geri Grid'e taşı
                 const allVideos = document.querySelectorAll('.video-container');
                 allVideos.forEach(vid => els.standardGrid.appendChild(vid));
             }
@@ -646,29 +635,22 @@
             const div = document.createElement('div');
             div.className = 'video-container animate-fade-in group';
             div.id = `vid-${id}`;
-            
             if (isScreenShare) div.classList.add('is-screen-share');
-            
             const placeholder = document.createElement('div');
             placeholder.className = 'cam-placeholder';
             placeholder.innerHTML = `<img src="https://r.resimlink.com/ZmxWCl-R70.png" class="animate-pulse"><span class="text-gray-400 text-xs font-semibold tracking-wider">KAMERA KAPALI</span>`;
-
             const video = document.createElement('video');
             video.srcObject = stream;
             video.autoplay = true;
             video.playsInline = true;
             if (isMuted) video.muted = true;
             if (id === 'me' && !isScreenShare) video.classList.add('mirror-mode');
-            
             const tag = document.createElement('div');
             tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
             tag.innerHTML = `<i class="fas fa-${isScreenShare ? 'desktop' : 'user'} text-[10px] text-blue-400"></i> ${label}`;
-
             div.appendChild(video);
             if (!isScreenShare) div.appendChild(placeholder);
             div.appendChild(tag);
-
-            // İlk eklemede varsayılan Grid'e at, sonra Layout Engine karar versin
             els.standardGrid.appendChild(div);
             recalculateLayout();
         }
