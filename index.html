@@ -2,7 +2,8 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Mobilde zoom yapmayı engelle ve tam ekran yerleşim sağla -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>MATOTA Online Eğitim</title>
     
     <link rel="manifest" href="manifest.json">
@@ -28,14 +29,17 @@
     </script>
 
     <style>
+        /* MOBİL İÇİN DİNAMİK YÜKSEKLİK AYARI */
         html, body {
-            height: 100%;
+            height: 100dvh; /* Dynamic Viewport Height - Kritik Düzeltme */
             width: 100%;
             overflow: hidden;
             background: #0f172a;
             color: white;
             margin: 0;
             padding: 0;
+            /* iOS Safe Area */
+            padding-bottom: env(safe-area-inset-bottom); 
         }
 
         .glass-panel {
@@ -44,9 +48,10 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        /* --- ANA ALANLAR --- */
         main {
             position: relative;
-            flex: 1;
+            flex: 1; /* Kalan boşluğu doldur */
             width: 100%;
             overflow: hidden;
             display: flex;
@@ -110,6 +115,7 @@
             #sidebar-area .video-container { min-width: 120px; height: 100%; }
         }
 
+        /* --- VİDEO STİLLERİ --- */
         .video-container {
             position: relative;
             border-radius: 12px;
@@ -209,8 +215,9 @@
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Oda Kodu</label>
+                    <!-- Link ile gelindiyse burası kilitlenecek -->
                     <input type="text" id="room-input" placeholder="ör: matematik" class="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none transition font-mono text-sm">
-                    <p class="text-[10px] text-gray-500 mt-1 ml-1">* Oda kodu otomatik küçük harfe çevrilir.</p>
+                    <p id="room-hint" class="text-[10px] text-gray-500 mt-1 ml-1">* Oda kodu otomatik küçük harfe çevrilir.</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mt-2">
                     <button id="create-btn" class="group relative px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-semibold transition overflow-hidden">
@@ -260,7 +267,8 @@
             </div>
         </main>
 
-        <footer class="h-16 flex items-center justify-center gap-4 pb-2 shrink-0 z-30">
+        <!-- Footer: Mobilde kesin görünürlük için z-index ve padding -->
+        <footer class="h-16 flex items-center justify-center gap-4 pb-4 md:pb-2 shrink-0 z-50 bg-[#0f172a] border-t border-white/5 w-full">
             <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl border border-white/10">
                 <button id="toggle-mic" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg"><i class="fas fa-microphone"></i></button>
                 <button id="toggle-cam" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg"><i class="fas fa-video"></i></button>
@@ -321,6 +329,7 @@
             localPreview: document.getElementById('local-preview'),
             nickInput: document.getElementById('nickname-input'),
             roomInput: document.getElementById('room-input'),
+            roomHint: document.getElementById('room-hint'),
             appTitle: document.getElementById('app-title-display'),
             welcomeMsg: document.getElementById('welcome-msg-display'),
             btnCreate: document.getElementById('create-btn'),
@@ -697,8 +706,12 @@
             if (roomParam) {
                 // Inputu doldur
                 els.roomInput.value = roomParam;
-                // Kullanıcı ismine odaklan ki hemen yazıp girsin
-                els.nickInput.focus();
+                els.roomInput.setAttribute('disabled', 'true');
+                els.roomInput.classList.add('bg-gray-800', 'text-gray-400');
+                els.roomHint.innerHTML = '<span class="text-green-400"><i class="fas fa-link"></i> Davet linki ile katılım sağlanıyor.</span>';
+                
+                // Kullanıcı ismine odaklan
+                setTimeout(() => els.nickInput.focus(), 500);
             }
         });
 
