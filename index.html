@@ -28,15 +28,17 @@
     </script>
 
     <style>
+        /* MOBİL İÇİN KESİN ÇÖZÜM: Fixed position ile tarayıcı barlarından kurtulma */
         html, body {
-            height: 100dvh;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
             width: 100%;
+            height: 100%;
             overflow: hidden;
             background: #0f172a;
             color: white;
             margin: 0;
             padding: 0;
-            padding-bottom: env(safe-area-inset-bottom); 
         }
 
         .glass-panel {
@@ -45,6 +47,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        /* --- ANA ALANLAR --- */
         main {
             position: relative;
             flex: 1;
@@ -166,6 +169,7 @@
         .btn-inactive { @apply bg-red-600 hover:bg-red-700 text-white border-red-600; }
         .btn-loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; }
 
+        /* Yan Panellerin Çıkış Animasyonları */
         .side-panel {
             transition: transform 0.3s ease-in-out;
             transform: translateX(100%);
@@ -177,7 +181,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col">
+<body class="flex flex-col">
 
     <div id="loader" class="fixed inset-0 z-[60] bg-gray-900 flex items-center justify-center">
         <div class="text-center">
@@ -244,7 +248,6 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <!-- YENİ: Chat Butonu -->
                 <button onclick="toggleChat()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-300 border border-white/10 transition flex items-center gap-2 relative">
                     <i class="fas fa-comment-alt"></i>
                     <span class="hidden sm:inline">Sohbet</span>
@@ -257,7 +260,7 @@
                     <span id="participant-count" class="bg-blue-500 text-white text-[8px] rounded-full px-1.5 py-0.5 absolute -top-1 -right-1">1</span>
                 </button>
                 <button onclick="copyLink()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-300 border border-white/10 transition flex items-center gap-2 hidden sm:flex">
-                    <i class="fas fa-link"></i> <span>Link</span>
+                    <i class="fas fa-link"></i> <span class="hidden sm:inline">Link</span>
                 </button>
             </div>
         </header>
@@ -270,7 +273,8 @@
             </div>
         </main>
 
-        <footer class="h-16 flex items-center justify-center gap-4 pb-4 md:pb-2 shrink-0 z-50 bg-[#0f172a] border-t border-white/5 w-full">
+        <!-- Footer: Alt kısımdaki sorunu çözen esnek yapı -->
+        <footer class="flex items-center justify-center gap-2 shrink-0 z-[100] bg-[#0f172a] border-t border-white/5 w-full" style="padding-bottom: max(16px, env(safe-area-inset-bottom)); min-height: 80px; padding-top: 12px;">
             <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl border border-white/10">
                 <button id="toggle-mic" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg" title="Mikrofon"><i class="fas fa-microphone"></i></button>
                 <button id="toggle-cam" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg" title="Kamera"><i class="fas fa-video"></i></button>
@@ -279,7 +283,6 @@
                 
                 <button id="share-screen" class="w-10 h-10 rounded-xl bg-gray-700 hover:bg-blue-600 text-white transition flex items-center justify-center text-lg" title="Ekran Paylaş"><i class="fas fa-desktop"></i></button>
                 
-                <!-- YENİ: Araçlar Butonu (Sadece Hocada Görünür) -->
                 <button id="btn-utilities" onclick="els.utilsModal.classList.remove('hidden')" class="hidden w-10 h-10 rounded-xl bg-gray-700 hover:bg-purple-600 text-white transition flex items-center justify-center text-lg" title="Yönetici Araçları">
                     <i class="fas fa-toolbox"></i>
                 </button>
@@ -290,7 +293,7 @@
         </footer>
 
         <!-- KATILIMCI SIDEBAR -->
-        <div id="participants-sidebar" class="side-panel absolute top-14 bottom-16 right-0 w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl">
+        <div id="participants-sidebar" class="side-panel absolute top-14 bottom-[80px] right-0 w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl">
             <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
                 <h3 class="font-bold text-sm">Katılımcılar</h3>
                 <button onclick="toggleParticipants()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
@@ -299,13 +302,12 @@
         </div>
 
         <!-- SOHBET SIDEBAR -->
-        <div id="chat-sidebar" class="side-panel absolute top-14 bottom-16 right-0 w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl">
+        <div id="chat-sidebar" class="side-panel absolute top-14 bottom-[80px] right-0 w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl">
             <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2">
                 <h3 class="font-bold text-sm"><i class="fas fa-comments text-blue-400 mr-1"></i> Ders Sohbeti</h3>
                 <button onclick="toggleChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
             <div id="chat-messages" class="flex-1 overflow-y-auto space-y-3 mb-3 pr-2 flex flex-col">
-                <!-- Mesajlar Buraya Düşecek -->
                 <div class="text-xs text-center text-gray-500 my-2">Sohbete hoş geldiniz. Mesajlar kayıt altına alınmaz.</div>
             </div>
             <div class="flex gap-2 shrink-0">
@@ -315,12 +317,11 @@
         </div>
 
         <!-- ARAÇLAR MODAL (POP-UP) -->
-        <div id="utils-modal" class="hidden fixed inset-0 z-[70] bg-black/70 flex items-center justify-center backdrop-blur-sm p-4">
+        <div id="utils-modal" class="hidden fixed inset-0 z-[110] bg-black/70 flex items-center justify-center backdrop-blur-sm p-4">
             <div class="bg-gray-800 border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
                 <button onclick="els.utilsModal.classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
                 <h3 class="text-lg font-bold mb-5 flex items-center gap-2 border-b border-white/10 pb-3"><i class="fas fa-toolbox text-purple-400"></i> Yönetici Araçları</h3>
 
-                <!-- Araç 1: Kayıt -->
                 <div class="mb-6 bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                     <h4 class="text-xs text-gray-400 font-bold mb-2 uppercase flex justify-between">
                         <span><i class="fas fa-record-vinyl mr-1 text-red-500"></i> Ders Kaydı</span>
@@ -332,7 +333,6 @@
                     <p class="text-[10px] text-gray-500 mt-2">Dersi bilgisayarınıza WebM formatında kaydeder.</p>
                 </div>
 
-                <!-- Araç 2: Zamanlayıcı -->
                 <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                     <h4 class="text-xs text-gray-400 font-bold mb-2 uppercase"><i class="fas fa-hourglass-half mr-1 text-yellow-500"></i> Zamanlayıcı</h4>
                     <div class="flex gap-2 mb-3">
@@ -351,12 +351,10 @@
             </div>
         </div>
         
-        <!-- Zamanlayıcı için görünmez Canvas -->
         <canvas id="timer-canvas" width="640" height="360" class="hidden"></canvas>
     </div>
 
     <script>
-        // CONFIG
         let config = {
             appTitle: "MATOTA Online Eğitim",
             teacherName: "Mustafa Kemal",
@@ -385,7 +383,6 @@
             timerInterval: null,
             startTime: null,
             
-            // Yeni State'ler
             isChatOpen: false,
             isRecording: false,
             mediaRecorder: null,
@@ -430,7 +427,6 @@
             pList: document.getElementById('participants-list'),
             pCount: document.getElementById('participant-count'),
             
-            // Yeni Elementler
             btnUtils: document.getElementById('btn-utilities'),
             utilsModal: document.getElementById('utils-modal'),
             chatSidebar: document.getElementById('chat-sidebar'),
@@ -439,11 +435,9 @@
             btnSendChat: document.getElementById('btn-send-chat'),
             chatNotif: document.getElementById('chat-notification'),
             
-            // Kayıt
             btnRecordToggle: document.getElementById('btn-record-toggle'),
             recordStatus: document.getElementById('record-status'),
             
-            // Zamanlayıcı
             timerMinInput: document.getElementById('timer-minutes'),
             btnTStart: document.getElementById('btn-timer-start'),
             btnTPause: document.getElementById('btn-timer-pause'),
@@ -557,7 +551,7 @@
 
             if (asTeacher) {
                 els.timer.classList.remove('hidden');
-                els.btnUtils.classList.remove('hidden'); // Araçlar butonunu göster
+                els.btnUtils.classList.remove('hidden');
                 startTimer();
             }
 
@@ -582,10 +576,9 @@
                 setupDataListener(conn);
             });
 
-            // ARAMA ALMA
             state.peer.on('call', (call) => {
                 const isScreenShare = call.metadata && call.metadata.type === 'screen';
-                const isTimer = call.metadata && call.metadata.type === 'timer'; // Yeni
+                const isTimer = call.metadata && call.metadata.type === 'timer';
 
                 if(isScreenShare || isTimer) call.answer(); else call.answer(state.localStream);
 
@@ -594,7 +587,7 @@
                     if (isScreenShare) {
                         addVideo(remoteStream, "Ekran Paylaşımı", false, `screen-${call.peer}`, true);
                     } else if (isTimer) {
-                        addVideo(remoteStream, "Zamanlayıcı", true, `timer-${call.peer}`, false); // Ses kapalı
+                        addVideo(remoteStream, "Zamanlayıcı", true, `timer-${call.peer}`, false);
                     } else {
                         addVideo(remoteStream, guestName, false, call.peer, false);
                         updateParticipantsList(call.peer, guestName, false);
@@ -665,7 +658,6 @@
                 if(data.type === 'cam-status') togglePeerVideoPlaceholder(conn.peer, data.enabled);
                 if(data.type === 'chat') {
                     appendChatMessage(data);
-                    // Hoca ise başkalarına da dağıt
                     if(state.isTeacher) broadcastData(data, conn.peer);
                 }
             });
@@ -677,17 +669,28 @@
             });
         }
 
-        // --- SOHBET FONKSİYONLARI ---
+        // --- DÜZELTME: SOHBET MENÜSÜ AÇ/KAPA ---
         window.toggleChat = () => {
             state.isChatOpen = !state.isChatOpen;
             if(state.isChatOpen) {
-                els.chatSidebar.classList.remove('translate-x-full');
-                els.chatNotif.classList.add('hidden'); // Bildirimi sıfırla
+                els.chatSidebar.classList.add('open');
+                els.chatNotif.classList.add('hidden');
                 els.chatInput.focus();
-                // Sidebarları yönet
+                // Diğer paneli kapat
                 els.sidebar.classList.remove('open');
             } else {
-                els.chatSidebar.classList.add('translate-x-full');
+                els.chatSidebar.classList.remove('open');
+            }
+        };
+
+        window.toggleParticipants = () => {
+            const isOpening = !els.sidebar.classList.contains('open');
+            if(isOpening) {
+                els.sidebar.classList.add('open');
+                els.chatSidebar.classList.remove('open');
+                state.isChatOpen = false;
+            } else {
+                els.sidebar.classList.remove('open');
             }
         };
 
@@ -697,7 +700,7 @@
             
             const msgObj = {
                 type: 'chat',
-                sender: state.nickname,
+                sender: state.nickname || 'Misafir',
                 text: text,
                 time: new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})
             };
@@ -707,54 +710,54 @@
             if(state.isTeacher) {
                 broadcastData(msgObj);
             } else {
-                // Öğrenci ise öğretmene gönder
                 const prefix = config.teacherName.replace(/\s+/g, '').toUpperCase();
                 const hostId = `${prefix}_${state.roomName}_HOST`;
                 if(state.dataConnections[hostId] && state.dataConnections[hostId].open) {
                     state.dataConnections[hostId].send(msgObj);
                 }
             }
-            
             els.chatInput.value = '';
         }
 
         els.btnSendChat.addEventListener('click', sendChat);
         els.chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
 
+        // --- DÜZELTME: SOHBET GÖNDEREN KİŞİ GÖRÜNÜRLÜĞÜ ---
         function appendChatMessage(data) {
             const isMe = data.sender === state.nickname;
             const div = document.createElement('div');
+            
+            // Renkleri daha belirgin yaptık (Mavi ve Sarı)
+            const senderNameColor = isMe ? 'text-blue-300' : 'text-yellow-400';
+            const displayName = isMe ? 'Sen' : (data.sender || 'Bilinmeyen');
+            
             div.className = `chat-msg max-w-[85%] rounded-xl p-2.5 text-sm ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-gray-800 text-gray-200 self-start rounded-bl-none border border-gray-700'}`;
             
             div.innerHTML = `
-                <div class="text-[10px] ${isMe ? 'text-blue-200' : 'text-gray-400'} font-bold mb-1">${isMe ? 'Sen' : data.sender} <span class="font-normal opacity-70 ml-1">${data.time}</span></div>
-                <div class="break-words">${data.text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                <div class="text-[11px] ${senderNameColor} font-bold mb-1">${displayName} <span class="font-normal text-gray-400 ml-1">${data.time}</span></div>
+                <div class="break-words text-[13px] text-white leading-relaxed">${data.text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
             `;
             
             els.chatMessages.appendChild(div);
             els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
             
-            // Kapalıysa bildirim yak
             if(!state.isChatOpen && !isMe) {
                 els.chatNotif.classList.remove('hidden');
             }
         }
 
-
-        // --- DERS KAYDI (EKRAN) ---
+        // --- DÜZELTME: DERS KAYDI EKRANI (Conflict fix) ---
         els.btnRecordToggle.addEventListener('click', async () => {
             if (state.isRecording) {
-                // DURDUR
                 state.mediaRecorder.stop();
                 state.isRecording = false;
                 els.btnRecordToggle.innerHTML = '<i class="fas fa-play text-xs"></i> Kaydı Başlat';
                 els.btnRecordToggle.className = 'w-full bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white rounded-lg py-2 text-sm flex items-center justify-center gap-2 transition';
                 els.recordStatus.classList.add('hidden');
             } else {
-                // BAŞLAT
                 try {
-                    // Tarayıcı sekmesini veya tüm ekranı seçtirir (Ses dahil)
-                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser" }, audio: true });
+                    // Kayıt için genel ekran paylaşımı izni (tarayıcı zorlaması kaldırıldı, çakışma önlendi)
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     state.mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
                     
                     state.mediaRecorder.ondataavailable = e => {
@@ -770,11 +773,11 @@
                         a.click();
                         URL.revokeObjectURL(url);
                         state.recordedChunks = [];
-                        stream.getTracks().forEach(t => t.stop()); // Paylaşımı kapat
+                        stream.getTracks().forEach(t => t.stop()); 
                     };
 
                     stream.getVideoTracks()[0].onended = () => {
-                        if(state.isRecording) els.btnRecordToggle.click(); // Tarayıcıdan durdurulursa
+                        if(state.isRecording) els.btnRecordToggle.click();
                     };
 
                     state.mediaRecorder.start();
@@ -786,17 +789,14 @@
 
                 } catch (e) {
                     console.error("Kayıt başlatılamadı", e);
-                    alert("Kayıt için ekran paylaşım izni verilmedi.");
+                    alert("Kayıt için ekran izni verilmedi.");
                 }
             }
         });
 
-
-        // --- ARAÇLAR: ZAMANLAYICI (HAYALET KATILIMCI) ---
         function drawTimerOnCanvas(ctx, canvas, width, height) {
-            ctx.fillStyle = '#1e293b'; // Arka plan
+            ctx.fillStyle = '#1e293b'; 
             ctx.fillRect(0, 0, width, height);
-            
             ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -825,11 +825,9 @@
 
         els.btnTStart.addEventListener('click', () => {
             const minutes = parseInt(els.timerMinInput.value) || 5;
-            
-            if (state.toolTimerStream && !state.toolTimerPaused) return; // Zaten çalışıyor
+            if (state.toolTimerStream && !state.toolTimerPaused) return; 
             
             if (state.toolTimerPaused) {
-                // Devam ettir
                 state.toolTimerPaused = false;
                 els.btnTPause.innerText = 'Beklet';
                 els.btnTPause.classList.replace('bg-blue-600', 'bg-yellow-600');
@@ -837,20 +835,15 @@
                 return;
             }
 
-            // İlk defa başlat
             state.toolTimerSeconds = minutes * 60;
             state.toolTimerPaused = false;
             
             const canvas = els.timerCanvas;
             const ctx = canvas.getContext('2d');
-            
-            // Yayını yakala (15 fps yeterli)
             state.toolTimerStream = canvas.captureStream(15);
             
-            // İlk çizim
             drawTimerOnCanvas(ctx, canvas, canvas.width, canvas.height);
             
-            // Döngü
             state.toolTimerInterval = setInterval(() => {
                 if (!state.toolTimerPaused && state.toolTimerSeconds > 0) {
                     state.toolTimerSeconds--;
@@ -858,10 +851,8 @@
                 drawTimerOnCanvas(ctx, canvas, canvas.width, canvas.height);
             }, 1000);
 
-            // Kendine ekle
             addVideo(state.toolTimerStream, "Zamanlayıcı", true, 'tool-timer', false);
             
-            // Diğerlerine yolla
             state.participants.forEach(p => {
                 if (p.id !== 'me') {
                     const call = state.peer.call(p.id, state.toolTimerStream, { metadata: { type: 'timer' } });
@@ -869,7 +860,6 @@
                 }
             });
 
-            // UI Güncelle
             els.btnTStart.classList.add('hidden');
             els.btnTPause.classList.remove('hidden');
             els.btnTStop.classList.remove('hidden');
@@ -879,11 +869,9 @@
 
         els.btnTPause.addEventListener('click', () => {
             state.toolTimerPaused = true;
-            // Çizimi hemen güncelle
             const ctx = els.timerCanvas.getContext('2d');
             drawTimerOnCanvas(ctx, els.timerCanvas, els.timerCanvas.width, els.timerCanvas.height);
             
-            // Pause butonu fonkisyonu değişsin (Devam et mantığı start butonunda)
             els.btnTPause.innerText = 'Durduruldu';
             els.btnTPause.classList.replace('bg-yellow-600', 'bg-blue-600');
             els.btnTPause.classList.replace('hover:bg-yellow-500', 'hover:bg-blue-500');
@@ -900,16 +888,14 @@
             document.getElementById('vid-tool-timer')?.remove();
             recalculateLayout();
 
-            // UI Sıfırla
             els.btnTStart.classList.remove('hidden');
             els.btnTPause.classList.add('hidden');
             els.btnTStop.classList.add('hidden');
-            els.btnTPause.innerText = 'Beklet'; // Orjinal haline dön
+            els.btnTPause.innerText = 'Beklet'; 
             els.btnTPause.classList.replace('bg-blue-600', 'bg-yellow-600');
             els.timerMinInput.disabled = false;
             els.timerMinInput.classList.remove('opacity-50');
         });
-
 
         function togglePeerVideoPlaceholder(peerId, isEnabled) {
             const container = document.getElementById(`vid-${peerId}`);
@@ -918,12 +904,6 @@
                 else container.classList.add('cam-off');
             }
         }
-
-        window.toggleParticipants = () => {
-            els.sidebar.classList.toggle('open');
-            els.chatSidebar.classList.add('translate-x-full'); // Diğerini kapat
-            state.isChatOpen = false;
-        };
 
         function updateParticipantsList(id, name, isTeacherPeer) {
             if (state.participants.some(p => p.id === id)) return;
@@ -1032,7 +1012,7 @@
             tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
             tag.innerHTML = `<i class="fas fa-${isScreenShare ? 'desktop' : (id.includes('timer') ? 'hourglass-half' : 'user')} text-[10px] ${id.includes('timer') ? 'text-yellow-400' : 'text-blue-400'}"></i> ${label}`;
             div.appendChild(video);
-            if (!isScreenShare && !id.includes('timer')) div.appendChild(placeholder); // Zamanlayıcıda logo çıkmasın
+            if (!isScreenShare && !id.includes('timer')) div.appendChild(placeholder); 
             div.appendChild(tag);
             els.standardGrid.appendChild(div);
             recalculateLayout();
