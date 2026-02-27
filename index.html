@@ -45,94 +45,106 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* --- KUSURSUZ SAHNE VE GALERİ DÜZENİ --- */
-        #main-content {
-            /* Flex layout ile içerik yönetimi */
-            transition: all 0.3s ease;
-        }
-
-        /* GALERİ ALANI (Kameralar) */
-        #gallery-area {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-content: center;
-            justify-content: center;
-            overflow-y: auto;
+        main {
+            position: relative;
+            flex: 1;
             width: 100%;
+            overflow: hidden;
+            display: flex;
         }
 
-        /* SAHNE ALANI (Ekran Paylaşımı) */
-        #stage-area {
-            background: #000;
-            border-radius: 12px;
-            border: 2px solid #3b82f6;
-            overflow: hidden;
-            display: none; /* Varsayılan olarak gizli */
-        }
-        
-        #stage-area video {
+        /* 1. STANDART GRID MODU */
+        #standard-grid {
+            display: grid;
+            gap: 12px;
+            padding: 12px;
             width: 100%;
             height: 100%;
-            object-fit: contain !important; /* Ekran asla kesilmez */
+            overflow-y: auto; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-auto-rows: minmax(200px, 1fr);
+            align-content: center;
+        }
+
+        /* 2. SUNUM MODU (Google Meet Yapısı) */
+        #presentation-layout {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: row;
+        }
+
+        #stage-area {
+            flex: 1;
             background: #000;
-        }
-
-        /* --- SPOTLIGHT MODU (EKRAN PAYLAŞIMI AKTİFKEN) --- */
-        /* Bu sınıf JS ile main elementine eklenir */
-        main.spotlight-active #stage-area {
             display: flex;
-            flex: 1; /* Sahne tüm boşluğu kaplar */
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
         }
 
-        main.spotlight-active #gallery-area {
-            flex: 0 0 280px; /* Kameralar sağda 280px'lik şeride sıkışır */
+        /* Yan Şerit Kameraları */
+        #sidebar-area {
+            width: 300px;
+            background: #0f172a;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            display: flex;
             flex-direction: column;
-            flex-wrap: nowrap;
-            align-content: start;
-            justify-content: start;
+            padding: 10px;
+            gap: 10px;
+            overflow-y: auto;
+            flex-shrink: 0;
         }
 
-        /* Spotlight Modunda Kameraların Uzamasını/Sünmesini Engelleyen Kesin Kural */
-        main.spotlight-active #gallery-area .video-container {
-            flex: 0 0 160px !important;
+        /* KAMERALARIN SÜNMESİNİ ENGELLEYEN KESİN KURAL */
+        #sidebar-area .video-container {
             height: 160px !important;
             min-height: 160px !important;
             max-height: 160px !important;
+            flex-shrink: 0;
             width: 100%;
         }
 
-        /* Mobilde Spotlight Modu */
         @media (max-width: 768px) {
-            main.spotlight-active {
-                flex-direction: column !important;
-            }
-            main.spotlight-active #gallery-area {
-                flex: 0 0 140px; /* Altta 140px'lik yatay şerit */
+            #presentation-layout { flex-direction: column; }
+            #sidebar-area {
+                width: 100%;
+                height: 140px;
                 flex-direction: row;
                 overflow-x: auto;
                 overflow-y: hidden;
+                border-left: none;
+                border-top: 1px solid rgba(255,255,255,0.1);
             }
-            main.spotlight-active #gallery-area .video-container {
-                flex: 0 0 160px !important;
-                height: 100% !important;
+            #sidebar-area .video-container { 
+                min-width: 160px !important; 
+                width: 160px !important;
+                height: 100% !important; 
             }
         }
 
-        /* --- GENEL VİDEO STİLLERİ --- */
         .video-container {
             position: relative;
             border-radius: 12px;
             overflow: hidden;
             background: #1e293b;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            width: 100%;
+            height: 100%;
+            min-height: 150px;
             display: flex;
             justify-content: center;
             align-items: center;
-            /* Standart boy (Spotlight aktif değilken JS ile ezilir) */
-            flex: 1 1 300px;
-            min-height: 200px;
-            max-height: 400px;
+        }
+
+        #stage-area video {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain !important; /* Ekran tam sığar */
         }
 
         .video-container video {
@@ -156,14 +168,21 @@
             padding: 10px;
         }
 
-        .cam-placeholder img { width: 100%; height: 100%; max-width: 100px; object-fit: contain; opacity: 0.8; }
+        .cam-placeholder img {
+            width: 100%;
+            height: 100%;
+            max-width: 100px;
+            object-fit: contain;
+            opacity: 0.8;
+        }
+
         .video-container.cam-off .cam-placeholder { display: flex; }
+        .video-container.is-screen-share .cam-placeholder { display: none !important; }
         
         .btn-active { @apply bg-gray-700 hover:bg-gray-600 text-white; }
         .btn-inactive { @apply bg-red-600 hover:bg-red-700 text-white border-red-600; }
         .btn-loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; }
 
-        /* SOHBET VE KATILIMCI ANİMASYONLARI İÇİN DÜZELTME */
         .chat-msg { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -258,18 +277,19 @@
             
             <!-- A: EKRAN PAYLAŞIM SAHNESİ -->
             <div id="stage-area">
-                <!-- JS ile Ekran Paylaşımı Buraya Eklenecek -->
-            </div>
+        <main>
+            <!-- A: Standart Grid -->
+            <div id="standard-grid"></div>
             
-            <!-- B: KAMERA GALERİSİ -->
-            <div id="gallery-area">
-                <!-- Kameralar Buraya Eklenecek -->
+            <!-- B: Ekran Paylaşımı (Sahne) -->
+            <div id="presentation-layout">
+                <div id="stage-area"></div>
+                <div id="sidebar-area"></div>
             </div>
 
             <!-- KATILIMCI LİSTESİ YAN PANELİ -->
-            <!-- Düzeltme: transform translateX kullanılarak kusursuz kapanma sağlandı -->
-            <div id="participants-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
-                <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2 shrink-0">
+            <div id="participants-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-[150] p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
+                <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
                     <h3 class="font-bold text-sm">Katılımcılar</h3>
                     <button onclick="toggleParticipants()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
                 </div>
@@ -277,9 +297,8 @@
             </div>
 
             <!-- SOHBET YAN PANELİ -->
-            <!-- Düzeltme: transform translateX kullanıldı -->
-            <div id="chat-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
-                <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2 shrink-0">
+            <div id="chat-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-[150] p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
+                <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2">
                     <h3 class="font-bold text-sm"><i class="fas fa-comments text-blue-400 mr-1"></i> Ders Sohbeti</h3>
                     <button onclick="toggleChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
                 </div>
@@ -671,32 +690,50 @@
             });
         }
 
-        // --- KUSURSUZ SOHBET VE KATILIMCI GEÇİŞİ (Hata Düzeltildi) ---
+        // --- KUSURSUZ SOHBET VE KATILIMCI GEÇİŞİ ---
         window.toggleChat = () => {
-            state.isChatOpen = !state.isChatOpen;
-            if(state.isChatOpen) {
+            const isHidden = els.chatSidebar.classList.contains('translate-x-full');
+            
+            if(isHidden) {
                 // Sohbeti aç
                 els.chatSidebar.classList.remove('translate-x-full');
+                els.chatSidebar.classList.add('translate-x-0');
                 els.chatNotif.classList.add('hidden');
                 els.chatInput.focus();
-                // Katılımcıları kapat
+                
+                // Diğerini (Katılımcılar) kapat
                 els.sidebar.classList.add('translate-x-full');
+                els.sidebar.classList.remove('translate-x-0');
+                
+                state.isChatOpen = true;
                 state.isParticipantsOpen = false;
             } else {
+                // Sohbeti kapat
                 els.chatSidebar.classList.add('translate-x-full');
+                els.chatSidebar.classList.remove('translate-x-0');
+                state.isChatOpen = false;
             }
         };
 
         window.toggleParticipants = () => {
-            state.isParticipantsOpen = !state.isParticipantsOpen;
-            if(state.isParticipantsOpen) {
+            const isHidden = els.sidebar.classList.contains('translate-x-full');
+            
+            if(isHidden) {
                 // Katılımcıları aç
                 els.sidebar.classList.remove('translate-x-full');
+                els.sidebar.classList.add('translate-x-0');
+                
                 // Sohbeti kapat
                 els.chatSidebar.classList.add('translate-x-full');
+                els.chatSidebar.classList.remove('translate-x-0');
+                
+                state.isParticipantsOpen = true;
                 state.isChatOpen = false;
             } else {
+                // Katılımcıları kapat
                 els.sidebar.classList.add('translate-x-full');
+                els.sidebar.classList.remove('translate-x-0');
+                state.isParticipantsOpen = false;
             }
         };
 
