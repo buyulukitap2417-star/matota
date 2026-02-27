@@ -28,17 +28,15 @@
     </script>
 
     <style>
-        /* --- MOBİL İÇİN KESİN ÇÖZÜM: 100dvh ve Flex Yapısı --- */
+        /* --- KÖKLÜ MOBİL VE TAŞMA ÇÖZÜMÜ --- */
         html, body {
-            height: 100dvh; /* Tarayıcı barlarına göre kendini ayarlar */
+            height: 100dvh; /* Dinamik viewport height - Mobilde alt barları engeller */
             width: 100vw;
             overflow: hidden;
             background: #0f172a;
             color: white;
             margin: 0;
             padding: 0;
-            display: flex;
-            flex-direction: column;
         }
 
         .glass-panel {
@@ -47,95 +45,77 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* Üst Header Sabit */
-        header { flex-shrink: 0; }
+        /* --- KUSURSUZ SAHNE VE GALERİ DÜZENİ --- */
+        #main-content {
+            /* Flex layout ile içerik yönetimi */
+            transition: all 0.3s ease;
+        }
 
-        /* Ana İçerik Esnek ve Taşırmaz */
-        main {
-            position: relative;
-            flex: 1 1 auto;
-            min-height: 0; /* Flex çocuklarının scroll yapabilmesi için kritik */
-            width: 100%;
+        /* GALERİ ALANI (Kameralar) */
+        #gallery-area {
             display: flex;
-            overflow: hidden;
-        }
-
-        /* Alt Footer Sabit */
-        footer {
-            flex-shrink: 0;
-            padding-bottom: env(safe-area-inset-bottom, 10px);
-            z-index: 100;
-        }
-
-        /* --- 1. STANDART GRID MODU --- */
-        #standard-grid {
-            display: grid;
+            flex-wrap: wrap;
             gap: 12px;
-            padding: 12px;
-            width: 100%;
-            height: 100%;
-            overflow-y: auto; 
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            grid-auto-rows: 250px; /* Yükseklik uzamasını engeller */
-            align-content: start; /* Yukarı yaslar */
-        }
-
-        /* --- 2. SUNUM MODU (Ekran Paylaşımı) --- */
-        #presentation-layout {
-            display: none;
-            width: 100%;
-            height: 100%;
-            flex-direction: row;
-        }
-
-        #stage-area {
-            flex: 1;
-            background: #000;
-            display: flex;
-            align-items: center;
+            align-content: center;
             justify-content: center;
-            padding: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Yan Şerit Kameraları */
-        #sidebar-area {
-            width: 300px;
-            background: #0f172a;
-            border-left: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-            gap: 10px;
             overflow-y: auto;
-            flex-shrink: 0;
+            width: 100%;
         }
 
-        /* YAN ŞERİTTEKİ VİDEOLARIN SÜNMESİNİ ENGELLEYEN KURAL */
-        #sidebar-area .video-container {
+        /* SAHNE ALANI (Ekran Paylaşımı) */
+        #stage-area {
+            background: #000;
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+            overflow: hidden;
+            display: none; /* Varsayılan olarak gizli */
+        }
+        
+        #stage-area video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain !important; /* Ekran asla kesilmez */
+            background: #000;
+        }
+
+        /* --- SPOTLIGHT MODU (EKRAN PAYLAŞIMI AKTİFKEN) --- */
+        /* Bu sınıf JS ile main elementine eklenir */
+        main.spotlight-active #stage-area {
+            display: flex;
+            flex: 1; /* Sahne tüm boşluğu kaplar */
+        }
+
+        main.spotlight-active #gallery-area {
+            flex: 0 0 280px; /* Kameralar sağda 280px'lik şeride sıkışır */
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-content: start;
+            justify-content: start;
+        }
+
+        /* Spotlight Modunda Kameraların Uzamasını/Sünmesini Engelleyen Kesin Kural */
+        main.spotlight-active #gallery-area .video-container {
+            flex: 0 0 160px !important;
             height: 160px !important;
             min-height: 160px !important;
             max-height: 160px !important;
-            flex-shrink: 0;
             width: 100%;
         }
 
+        /* Mobilde Spotlight Modu */
         @media (max-width: 768px) {
-            #presentation-layout { flex-direction: column; }
-            #sidebar-area {
-                width: 100%;
-                height: 140px; /* Mobilde alt şerit boyutu */
+            main.spotlight-active {
+                flex-direction: column !important;
+            }
+            main.spotlight-active #gallery-area {
+                flex: 0 0 140px; /* Altta 140px'lik yatay şerit */
                 flex-direction: row;
                 overflow-x: auto;
                 overflow-y: hidden;
-                border-left: none;
-                border-top: 1px solid rgba(255,255,255,0.1);
             }
-            #sidebar-area .video-container { 
-                min-width: 160px !important; 
-                width: 160px !important;
-                height: 100% !important; 
+            main.spotlight-active #gallery-area .video-container {
+                flex: 0 0 160px !important;
+                height: 100% !important;
             }
         }
 
@@ -146,19 +126,13 @@
             overflow: hidden;
             background: #1e293b;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            width: 100%;
-            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-
-        #stage-area video {
-            width: 100%;
-            height: 100%;
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain !important; /* Ekran tam sığsın */
+            /* Standart boy (Spotlight aktif değilken JS ile ezilir) */
+            flex: 1 1 300px;
+            min-height: 200px;
+            max-height: 400px;
         }
 
         .video-container video {
@@ -182,32 +156,19 @@
             padding: 10px;
         }
 
-        .cam-placeholder img {
-            width: 100%;
-            height: 100%;
-            max-width: 100px;
-            object-fit: contain;
-            opacity: 0.8;
-        }
-
+        .cam-placeholder img { width: 100%; height: 100%; max-width: 100px; object-fit: contain; opacity: 0.8; }
         .video-container.cam-off .cam-placeholder { display: flex; }
         
         .btn-active { @apply bg-gray-700 hover:bg-gray-600 text-white; }
         .btn-inactive { @apply bg-red-600 hover:bg-red-700 text-white border-red-600; }
         .btn-loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; }
 
-        /* Yan Panellerin Düzeltilmiş Çıkış Animasyonları */
-        .side-panel {
-            transition: right 0.3s ease-in-out;
-            right: -400px; /* Ekrandan tamamen gizle */
-        }
-        .side-panel.open { right: 0; }
-        
+        /* SOHBET VE KATILIMCI ANİMASYONLARI İÇİN DÜZELTME */
         .chat-msg { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body>
+<body class="flex flex-col">
 
     <div id="loader" class="fixed inset-0 z-[60] bg-gray-900 flex items-center justify-center">
         <div class="text-center">
@@ -258,7 +219,8 @@
     </div>
 
     <!-- 2. ODA EKRANI -->
-    <div id="room-screen" class="hidden h-full w-full flex flex-col relative">
+    <div id="room-screen" class="hidden h-full w-full flex flex-col relative bg-[#0b1120]">
+        <!-- ÜST BAR -->
         <header class="h-14 glass-panel border-b border-white/5 flex items-center justify-between px-4 z-20 shrink-0">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
@@ -291,28 +253,33 @@
             </div>
         </header>
 
-        <main>
-            <!-- A: Standart Grid -->
-            <div id="standard-grid"></div>
+        <!-- ANA İÇERİK (Kameralar ve Ekran) -->
+        <main id="main-content" class="flex-1 w-full flex flex-row relative overflow-hidden p-3 gap-3">
             
-            <!-- B: Ekran Paylaşımı (Sahne) -->
-            <div id="presentation-layout">
-                <div id="stage-area"></div>
-                <div id="sidebar-area"></div>
+            <!-- A: EKRAN PAYLAŞIM SAHNESİ -->
+            <div id="stage-area">
+                <!-- JS ile Ekran Paylaşımı Buraya Eklenecek -->
+            </div>
+            
+            <!-- B: KAMERA GALERİSİ -->
+            <div id="gallery-area">
+                <!-- Kameralar Buraya Eklenecek -->
             </div>
 
-            <!-- KATILIMCI SIDEBAR (Main İçine Alındı - Daha stabil) -->
-            <div id="participants-sidebar" class="side-panel absolute top-0 bottom-0 right-0 h-full w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl">
-                <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+            <!-- KATILIMCI LİSTESİ YAN PANELİ -->
+            <!-- Düzeltme: transform translateX kullanılarak kusursuz kapanma sağlandı -->
+            <div id="participants-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
+                <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2 shrink-0">
                     <h3 class="font-bold text-sm">Katılımcılar</h3>
                     <button onclick="toggleParticipants()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
                 </div>
                 <div id="participants-list" class="flex-1 overflow-y-auto space-y-2"></div>
             </div>
 
-            <!-- SOHBET SIDEBAR (Main İçine Alındı) -->
-            <div id="chat-sidebar" class="side-panel absolute top-0 bottom-0 right-0 h-full w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl">
-                <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2">
+            <!-- SOHBET YAN PANELİ -->
+            <!-- Düzeltme: transform translateX kullanıldı -->
+            <div id="chat-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-40 p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
+                <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2 shrink-0">
                     <h3 class="font-bold text-sm"><i class="fas fa-comments text-blue-400 mr-1"></i> Ders Sohbeti</h3>
                     <button onclick="toggleChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
                 </div>
@@ -326,8 +293,8 @@
             </div>
         </main>
 
-        <!-- FOOTER: Mobilde Asla Kaybolmayacak Şekilde Revize Edildi -->
-        <footer class="h-20 shrink-0 z-50 bg-[#0f172a] border-t border-white/5 w-full flex items-center justify-center px-4" style="padding-bottom: env(safe-area-inset-bottom);">
+        <!-- ALT KONTROL BAR (FOOTER) - DÜZELTME: Mobilde asla altta kalmaz -->
+        <footer class="h-[80px] shrink-0 z-[100] bg-[#0f172a] border-t border-white/5 w-full flex items-center justify-center px-4" style="padding-bottom: max(0px, env(safe-area-inset-bottom));">
             <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl border border-white/10">
                 <button id="toggle-mic" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg" title="Mikrofon"><i class="fas fa-microphone"></i></button>
                 <button id="toggle-cam" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg" title="Kamera"><i class="fas fa-video"></i></button>
@@ -351,6 +318,7 @@
                 <button onclick="els.utilsModal.classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
                 <h3 class="text-lg font-bold mb-5 flex items-center gap-2 border-b border-white/10 pb-3"><i class="fas fa-toolbox text-purple-400"></i> Yönetici Araçları</h3>
 
+                <!-- Araç 1: Kayıt -->
                 <div class="mb-6 bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                     <h4 class="text-xs text-gray-400 font-bold mb-2 uppercase flex justify-between">
                         <span><i class="fas fa-record-vinyl mr-1 text-red-500"></i> Ders Kaydı</span>
@@ -362,6 +330,7 @@
                     <p class="text-[10px] text-gray-500 mt-2">Dersi bilgisayarınıza WebM formatında kaydeder.</p>
                 </div>
 
+                <!-- Araç 2: Zamanlayıcı -->
                 <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                     <h4 class="text-xs text-gray-400 font-bold mb-2 uppercase"><i class="fas fa-hourglass-half mr-1 text-yellow-500"></i> Zamanlayıcı</h4>
                     <div class="flex gap-2 mb-3">
@@ -384,6 +353,7 @@
     </div>
 
     <script>
+        // CONFIG
         let config = {
             appTitle: "MATOTA Online Eğitim",
             teacherName: "Mustafa Kemal",
@@ -413,9 +383,10 @@
             startTime: null,
             
             isChatOpen: false,
+            isParticipantsOpen: false,
             isRecording: false,
             mediaRecorder: null,
-            recordingStream: null, // Kayıt ve ekran paylaşımı çakışmasını engeller
+            recordingStream: null,
             recordedChunks: [],
             
             toolTimerStream: null,
@@ -429,10 +400,11 @@
             loader: document.getElementById('loader'),
             lobby: document.getElementById('lobby-screen'),
             room: document.getElementById('room-screen'),
-            standardGrid: document.getElementById('standard-grid'),
-            presentationLayout: document.getElementById('presentation-layout'),
+            
+            mainContent: document.getElementById('main-content'),
             stageArea: document.getElementById('stage-area'),
-            sidebarArea: document.getElementById('sidebar-area'),
+            galleryArea: document.getElementById('gallery-area'),
+            
             localPreview: document.getElementById('local-preview'),
             nickInput: document.getElementById('nickname-input'),
             roomInput: document.getElementById('room-input'),
@@ -699,27 +671,32 @@
             });
         }
 
-        // --- DÜZELTİLMİŞ SOHBET AÇ/KAPA VE KATILIMCI GEÇİŞİ ---
+        // --- KUSURSUZ SOHBET VE KATILIMCI GEÇİŞİ (Hata Düzeltildi) ---
         window.toggleChat = () => {
             state.isChatOpen = !state.isChatOpen;
             if(state.isChatOpen) {
-                els.chatSidebar.classList.add('open');
+                // Sohbeti aç
+                els.chatSidebar.classList.remove('translate-x-full');
                 els.chatNotif.classList.add('hidden');
                 els.chatInput.focus();
-                els.sidebar.classList.remove('open'); // Diğerini kapat
+                // Katılımcıları kapat
+                els.sidebar.classList.add('translate-x-full');
+                state.isParticipantsOpen = false;
             } else {
-                els.chatSidebar.classList.remove('open');
+                els.chatSidebar.classList.add('translate-x-full');
             }
         };
 
         window.toggleParticipants = () => {
-            const isOpening = !els.sidebar.classList.contains('open');
-            if(isOpening) {
-                els.sidebar.classList.add('open');
-                els.chatSidebar.classList.remove('open'); // Sohbeti kapat
+            state.isParticipantsOpen = !state.isParticipantsOpen;
+            if(state.isParticipantsOpen) {
+                // Katılımcıları aç
+                els.sidebar.classList.remove('translate-x-full');
+                // Sohbeti kapat
+                els.chatSidebar.classList.add('translate-x-full');
                 state.isChatOpen = false;
             } else {
-                els.sidebar.classList.remove('open');
+                els.sidebar.classList.add('translate-x-full');
             }
         };
 
@@ -751,7 +728,7 @@
         els.btnSendChat.addEventListener('click', sendChat);
         els.chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
 
-        // --- SOHBET GÖNDEREN GÖRÜNÜRLÜĞÜ ---
+        // --- SOHBET GÖNDEREN GÖRÜNÜRLÜĞÜ DÜZELTİLDİ ---
         function appendChatMessage(data) {
             const isMe = data.sender === state.nickname;
             const div = document.createElement('div');
@@ -761,13 +738,16 @@
             
             div.className = `chat-msg max-w-[85%] rounded-xl p-2.5 text-sm flex flex-col ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-gray-800 text-gray-200 self-start rounded-bl-none border border-gray-700'}`;
             
+            // İsimleri güvenli render etme
             div.innerHTML = `
                 <div class="text-[11px] ${senderNameColor} font-bold mb-1 border-b border-white/10 pb-1 flex justify-between gap-3">
                     <span>${displayName}</span>
                     <span class="font-normal text-white/70">${data.time}</span>
                 </div>
-                <div class="break-words text-[13px] leading-relaxed text-white">${data.text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                <div class="break-words text-[13px] leading-relaxed text-white"></div>
             `;
+            // Text içeriğini textContent ile ekliyoruz (XSS koruması ve html bozulmalarını önler)
+            div.querySelector('.break-words').textContent = data.text;
             
             els.chatMessages.appendChild(div);
             els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
@@ -777,33 +757,29 @@
             }
         }
 
-        // --- EKRAN PAYLAŞIMI VE KAYIT ÇAKIŞMA ÇÖZÜMÜ ---
+        // --- EKRAN PAYLAŞIMI VE KAYIT ÇAKIŞMASINI ÖNLEYEN KESİN ÇÖZÜM ---
         els.btnRecordToggle.addEventListener('click', async () => {
             if (state.isRecording) {
-                // Kaydı durdur
                 state.mediaRecorder.stop();
                 state.isRecording = false;
                 els.btnRecordToggle.innerHTML = '<i class="fas fa-play text-xs"></i> Kaydı Başlat';
                 els.btnRecordToggle.className = 'w-full bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white rounded-lg py-2 text-sm flex items-center justify-center gap-2 transition';
                 els.recordStatus.classList.add('hidden');
                 
-                // Eğer bu yayın sadece kayıt için açıldıysa kapat (ekran paylaşılan yayın değilse)
-                if (state.recordingStream && state.recordingStream !== state.screenStream) {
+                // Kayıt için açılan özel yayını kapat
+                if (state.recordingStream) {
                     state.recordingStream.getTracks().forEach(t => t.stop());
                 }
                 state.recordingStream = null;
 
             } else {
                 try {
-                    let streamToRecord = state.screenStream; // Halihazırda ekran paylaşımı varsa onu kullan
+                    // Kayıt için HER ZAMAN yeni ve ayrı bir yayın (stream) iste
+                    // Bu sayede Ekran Paylaşımı (PeerJS) yayınından tamamen izole olur
+                    const recordStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    state.recordingStream = recordStream;
                     
-                    if (!streamToRecord) {
-                        // Yoksa yeni izin iste
-                        streamToRecord = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-                        state.recordingStream = streamToRecord;
-                    }
-
-                    state.mediaRecorder = new MediaRecorder(streamToRecord, { mimeType: 'video/webm' });
+                    state.mediaRecorder = new MediaRecorder(recordStream, { mimeType: 'video/webm' });
                     
                     state.mediaRecorder.ondataavailable = e => {
                         if (e.data.size > 0) state.recordedChunks.push(e.data);
@@ -820,12 +796,9 @@
                         state.recordedChunks = [];
                     };
 
-                    // Sadece bu streami biz başlattıysak onended ekle
-                    if (!state.screenStream) {
-                        streamToRecord.getVideoTracks()[0].onended = () => {
-                            if(state.isRecording) els.btnRecordToggle.click();
-                        };
-                    }
+                    recordStream.getVideoTracks()[0].onended = () => {
+                        if(state.isRecording) els.btnRecordToggle.click();
+                    };
 
                     state.mediaRecorder.start();
                     state.isRecording = true;
@@ -835,11 +808,122 @@
                     els.recordStatus.classList.remove('hidden');
 
                 } catch (e) {
-                    alert("Kayıt başlatılamadı. Ekran izni vermelisiniz.\nHata: " + e.message);
+                    alert("Kayıt başlatılamadı. Ekran izni vermelisiniz.");
                 }
             }
         });
 
+        // EKRAN PAYLAŞIMI
+        els.btnScreen.addEventListener('click', async () => {
+            if (state.screenStream) {
+                // DURDUR
+                state.screenStream.getTracks().forEach(track => track.stop());
+                state.screenStream = null;
+                
+                els.btnScreen.classList.remove('bg-blue-600', 'text-white');
+                els.btnScreen.classList.add('bg-gray-700');
+                
+                const screenDiv = document.getElementById('vid-myscreen');
+                if(screenDiv) screenDiv.remove();
+                
+                state.screenCalls.forEach(call => call.close());
+                state.screenCalls = [];
+                
+                recalculateLayout();
+            } else {
+                // BAŞLAT (Kayıttan bağımsız yeni stream)
+                try {
+                    const shareStream = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
+                    state.screenStream = shareStream;
+                    
+                    shareStream.getVideoTracks()[0].onended = () => els.btnScreen.click();
+                    
+                    els.btnScreen.classList.remove('bg-gray-700');
+                    els.btnScreen.classList.add('bg-blue-600', 'text-white');
+                    
+                    addVideo(shareStream, "Ekran Paylaşımı (Sen)", true, 'myscreen', true);
+                    
+                    state.participants.forEach(p => {
+                        if (p.id !== 'me') {
+                            const call = state.peer.call(p.id, shareStream, { metadata: { type: 'screen' } });
+                            state.screenCalls.push(call);
+                        }
+                    });
+                } catch (err) { }
+            }
+        });
+
+        // --- YENİLENEN KUSURSUZ LAYOUT MANTIĞI ---
+        function recalculateLayout() {
+            const hasScreenShare = document.querySelector('.video-container.is-screen-share');
+            
+            if (hasScreenShare) {
+                // SAHNE MODU AKTİF
+                els.mainContent.classList.add('spotlight-active');
+                
+                // Normal kameraları normal esnek ayarından çıkart
+                document.querySelectorAll('#gallery-area .video-container').forEach(v => {
+                    v.style.flex = '';
+                    v.style.minHeight = '';
+                    v.style.maxHeight = '';
+                });
+            } else {
+                // SAHNE MODU KAPALI (STANDART GALERİ)
+                els.mainContent.classList.remove('spotlight-active');
+                
+                // Kameralara standart esnek boyutları geri ver
+                document.querySelectorAll('#gallery-area .video-container').forEach(v => {
+                    v.style.flex = '1 1 300px';
+                    v.style.minHeight = '200px';
+                    v.style.maxHeight = '400px';
+                });
+            }
+        }
+
+        function addVideo(stream, label, isMuted, id, isScreenShare) {
+            if(document.getElementById(`vid-${id}`)) return;
+            const div = document.createElement('div');
+            div.className = 'video-container animate-fade-in group';
+            div.id = `vid-${id}`;
+            
+            if (isScreenShare) div.classList.add('is-screen-share');
+            else {
+                // Başlangıçta standart flex değerleri (Spotlight açıksa Layout Engine ezecek)
+                div.style.flex = '1 1 300px';
+                div.style.minHeight = '200px';
+                div.style.maxHeight = '400px';
+            }
+
+            const placeholder = document.createElement('div');
+            placeholder.className = 'cam-placeholder';
+            placeholder.innerHTML = `<img src="https://r.resimlink.com/ZmxWCl-R70.png" class="animate-pulse"><span class="text-gray-400 text-xs font-semibold tracking-wider mt-2">KAMERA KAPALI</span>`;
+            
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.playsInline = true;
+            if (isMuted) video.muted = true;
+            if (id === 'me' && !isScreenShare) video.classList.add('mirror-mode');
+            
+            const tag = document.createElement('div');
+            tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
+            tag.innerHTML = `<i class="fas fa-${isScreenShare ? 'desktop' : (id.includes('timer') ? 'hourglass-half' : 'user')} text-[10px] ${id.includes('timer') ? 'text-yellow-400' : 'text-blue-400'}"></i> ${label}`;
+            
+            div.appendChild(video);
+            if (!isScreenShare && !id.includes('timer')) div.appendChild(placeholder); 
+            div.appendChild(tag);
+            
+            // Ekran paylaşımı ise direk Sahneye at, diğerlerini Galeriye at
+            if (isScreenShare) {
+                els.stageArea.appendChild(div);
+            } else {
+                els.galleryArea.appendChild(div);
+            }
+            
+            recalculateLayout();
+        }
+
+        // --- ZAMANLAYICI MANTIĞI ---
         function drawTimerOnCanvas(ctx, canvas, width, height) {
             ctx.fillStyle = '#1e293b'; 
             ctx.fillRect(0, 0, width, height);
@@ -918,7 +1002,7 @@
             const ctx = els.timerCanvas.getContext('2d');
             drawTimerOnCanvas(ctx, els.timerCanvas, els.timerCanvas.width, els.timerCanvas.height);
             
-            els.btnTPause.innerText = 'Durduruldu';
+            els.btnTPause.innerText = 'Devam Et';
             els.btnTPause.classList.replace('bg-yellow-600', 'bg-blue-600');
             els.btnTPause.classList.replace('hover:bg-yellow-500', 'hover:bg-blue-500');
         });
@@ -990,96 +1074,6 @@
             if (state.activeCalls[peerId]) state.activeCalls[peerId].close();
             document.getElementById(`vid-${peerId}`)?.remove();
             removeParticipant(peerId);
-            recalculateLayout();
-        }
-
-        els.btnScreen.addEventListener('click', async () => {
-            if (state.screenStream) {
-                // EKRAN PAYLAŞIMINI DURDUR
-                if (state.screenStream !== state.recordingStream) {
-                    state.screenStream.getTracks().forEach(track => track.stop());
-                }
-                state.screenStream = null;
-                els.btnScreen.classList.remove('bg-blue-600', 'text-white');
-                els.btnScreen.classList.add('bg-gray-700');
-                const screenDiv = document.getElementById('vid-myscreen');
-                if(screenDiv) screenDiv.remove();
-                state.screenCalls.forEach(call => call.close());
-                state.screenCalls = [];
-                recalculateLayout();
-            } else {
-                // EKRAN PAYLAŞIMI BAŞLAT
-                try {
-                    let streamToShare = state.recordingStream; // Zaten kayıt yapılıyorsa onu kullan
-                    if (!streamToShare) {
-                        streamToShare = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
-                    }
-                    
-                    state.screenStream = streamToShare;
-                    
-                    // Sadece bu aksiyon için başlatıldıysa onended dinle
-                    if (!state.recordingStream) {
-                        streamToShare.getVideoTracks()[0].onended = () => {
-                            if(state.screenStream) els.btnScreen.click();
-                        };
-                    }
-                    
-                    els.btnScreen.classList.remove('bg-gray-700');
-                    els.btnScreen.classList.add('bg-blue-600', 'text-white');
-                    addVideo(streamToShare, "Ekran Paylaşımı (Sen)", true, 'myscreen', true);
-                    state.participants.forEach(p => {
-                        if (p.id !== 'me') {
-                            const call = state.peer.call(p.id, streamToShare, { metadata: { type: 'screen' } });
-                            state.screenCalls.push(call);
-                        }
-                    });
-                } catch (err) { alert("Ekran izni verilmedi."); }
-            }
-        });
-
-        // HATA GİDERİLDİ: DOM Düğüm taşıma işlemi sağlamlaştırıldı
-        function recalculateLayout() {
-            const screenShareEl = document.querySelector('.video-container.is-screen-share');
-            if (screenShareEl) {
-                els.standardGrid.style.display = 'none';
-                els.presentationLayout.style.display = 'flex';
-                
-                els.stageArea.innerHTML = ''; // Temizle
-                els.stageArea.appendChild(screenShareEl);
-                
-                const allVideos = document.querySelectorAll('.video-container:not(.is-screen-share)');
-                allVideos.forEach(vid => els.sidebarArea.appendChild(vid));
-            } else {
-                els.presentationLayout.style.display = 'none';
-                els.standardGrid.style.display = 'grid';
-                
-                const allVideos = document.querySelectorAll('.video-container');
-                allVideos.forEach(vid => els.standardGrid.appendChild(vid));
-            }
-        }
-
-        function addVideo(stream, label, isMuted, id, isScreenShare) {
-            if(document.getElementById(`vid-${id}`)) return;
-            const div = document.createElement('div');
-            div.className = 'video-container animate-fade-in group';
-            div.id = `vid-${id}`;
-            if (isScreenShare) div.classList.add('is-screen-share');
-            const placeholder = document.createElement('div');
-            placeholder.className = 'cam-placeholder';
-            placeholder.innerHTML = `<img src="https://r.resimlink.com/ZmxWCl-R70.png" class="animate-pulse"><span class="text-gray-400 text-xs font-semibold tracking-wider">KAMERA KAPALI</span>`;
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.autoplay = true;
-            video.playsInline = true;
-            if (isMuted) video.muted = true;
-            if (id === 'me' && !isScreenShare) video.classList.add('mirror-mode');
-            const tag = document.createElement('div');
-            tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
-            tag.innerHTML = `<i class="fas fa-${isScreenShare ? 'desktop' : (id.includes('timer') ? 'hourglass-half' : 'user')} text-[10px] ${id.includes('timer') ? 'text-yellow-400' : 'text-blue-400'}"></i> ${label}`;
-            div.appendChild(video);
-            if (!isScreenShare && !id.includes('timer')) div.appendChild(placeholder); 
-            div.appendChild(tag);
-            els.standardGrid.appendChild(div);
             recalculateLayout();
         }
 
