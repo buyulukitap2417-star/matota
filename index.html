@@ -40,6 +40,30 @@
             padding: 0;
         }
 
+        /* --- ÖZEL İMLEÇ (CURSOR) VE TIKLAMA EFEKTİ --- */
+        body * {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="%233b82f6" stroke="rgba(255,255,255,0.8)" stroke-width="2"/></svg>') 12 12, auto;
+        }
+        button, a, input, [onclick], .video-card, .cursor-pointer {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="%2310b981" stroke="rgba(255,255,255,0.8)" stroke-width="2"/></svg>') 12 12, pointer !important;
+        }
+
+        .click-ripple {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            width: 20px;
+            height: 20px;
+            background: rgba(59, 130, 246, 0.6);
+            transform: translate(-50%, -50%) scale(1);
+            animation: ripple-anim 0.5s ease-out forwards;
+            z-index: 99999;
+        }
+        @keyframes ripple-anim {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+        }
+
         .glass-panel {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(16px);
@@ -309,7 +333,6 @@
     </div>
 
     <!-- 2. ODA EKRANI -->
-    <!-- Başlangıçta mode-speaker aktif (Konuşmacı Görünümü) -->
     <div id="room-screen" class="hidden flex-1 w-full flex flex-col relative bg-[#0b1120] overflow-hidden">
         
         <header class="h-14 glass-panel border-b border-white/5 flex items-center justify-between px-4 shrink-0 z-20">
@@ -430,6 +453,19 @@
     </div>
 
     <script>
+        // --- SAĞ TIK YASAĞI ---
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        // --- TIKLAMA ANİMASYONU ---
+        document.addEventListener('click', function(e) {
+            const ripple = document.createElement('div');
+            ripple.className = 'click-ripple';
+            ripple.style.left = e.clientX + 'px';
+            ripple.style.top = e.clientY + 'px';
+            document.body.appendChild(ripple);
+            setTimeout(() => { ripple.remove(); }, 500);
+        });
+
         // CONFIG
         let config = {
             appTitle: "MATOTA Online Eğitim",
@@ -472,7 +508,7 @@
             toolTimerPaused: false,
             toolTimerCalls: [],
 
-            layoutMode: 'speaker', // Artık varsayılan olarak Konuşmacı Modu
+            layoutMode: 'speaker', // Varsayılan Konuşmacı Modu
             mainSpeakerId: null 
         };
 
@@ -549,7 +585,6 @@
                 const now = audioCtx.currentTime;
                 
                 if (type === 'join') {
-                    // Katılım sesi: Yükselen yumuşak ton
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(440, now);
                     osc.frequency.exponentialRampToValueAtTime(660, now + 0.1);
@@ -559,7 +594,6 @@
                     osc.start(now);
                     osc.stop(now + 0.3);
                 } else if (type === 'leave') {
-                    // Ayrılma sesi: Alçalan tok ton
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(660, now);
                     osc.frequency.exponentialRampToValueAtTime(440, now + 0.2);
@@ -569,7 +603,6 @@
                     osc.start(now);
                     osc.stop(now + 0.3);
                 } else if (type === 'chat') {
-                    // Mesaj sesi: Kısa bildirim
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(880, now);
                     gain.gain.setValueAtTime(0, now);
@@ -662,7 +695,7 @@
         }
 
         async function startSession(asTeacher) {
-            initAudio(); // Kullanıcı tıkladığı an ses motorunu kilitten kurtar
+            initAudio(); 
             
             const btn = asTeacher ? els.btnCreate : els.btnJoin;
             const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
@@ -741,10 +774,11 @@
                     document.getElementById(fullCardId)?.remove();
 
                     if (state.mainSpeakerId === fullCardId) {
-                        clearMainSpeaker();
-                    } else {
-                        applyLayout();
+                        state.mainSpeakerId = autoSelectMainSpeaker();
+                        if (!state.mainSpeakerId) state.layoutMode = 'grid';
                     }
+                    applyLayout();
+                    
                     if (!isScreenShare && !isTimer) removeParticipant(call.peer);
                 });
             });
@@ -811,7 +845,7 @@
             });
         }
 
-        // --- KUSURSUZ SOHBET VE KATILIMCI GEÇİŞİ (Tailwind Hatası Çözüldü) ---
+        // --- KUSURSUZ YAN PANEL YÖNETİMİ ---
         window.toggleChat = () => {
             state.isChatOpen = !state.isChatOpen;
             if(state.isChatOpen) {
@@ -889,22 +923,53 @@
             
             if(!state.isChatOpen && !isMe) {
                 els.chatNotif.classList.remove('hidden');
-                playSound('chat'); // YENİ: Sohbet sesi
+                playSound('chat');
             }
         }
 
-        // --- KUSURSUZ LAYOUT MİMARİSİ (DOM TAŞIMA & SÜNMEYİ ÖNLEME) ---
+        // --- ZEKİ ÖNCELİK VE LAYOUT MİMARİSİ (EKRAN PAYLAŞIMI > ÖĞRETMEN > DİĞERLERİ) ---
+        function autoSelectMainSpeaker() {
+            // 1. Öncelik: Ekran Paylaşımı
+            const screenShare = document.querySelector('.is-screen-share');
+            if (screenShare) return screenShare.id;
+            
+            // 2. Öncelik: Öğretmen
+            let teacherCard = null;
+            if (state.isTeacher) {
+                teacherCard = document.getElementById('vid-me');
+            } else {
+                const allCards = document.querySelectorAll('.video-card');
+                for(let card of allCards) {
+                    if (card.id.includes('HOST')) {
+                        teacherCard = card;
+                        break;
+                    }
+                }
+            }
+            if (teacherCard) return teacherCard.id;
+            
+            // 3. Öncelik: Herhangi bir öğrenci (Zamanlayıcı hariç)
+            const firstVid = document.querySelector('.video-card:not(.is-timer)');
+            if (firstVid) return firstVid.id;
+
+            // 4. En son çare: Zamanlayıcı
+            const timerCard = document.querySelector('.is-timer');
+            if (timerCard) return timerCard.id;
+            
+            return null;
+        }
+
         els.btnToggleLayout.addEventListener('click', () => {
             if (state.layoutMode === 'grid') {
-                if (!state.mainSpeakerId) {
-                    const firstVid = document.querySelector('.video-card');
-                    if (firstVid) setMainSpeaker(firstVid.id);
-                } else {
+                state.mainSpeakerId = autoSelectMainSpeaker();
+                if (state.mainSpeakerId) {
                     state.layoutMode = 'speaker';
-                    applyLayout();
                 }
+                applyLayout();
             } else {
-                clearMainSpeaker();
+                state.mainSpeakerId = null;
+                state.layoutMode = 'grid';
+                applyLayout();
             }
         });
 
@@ -914,50 +979,26 @@
             applyLayout();
         }
 
-        function clearMainSpeaker() {
-            state.mainSpeakerId = null;
-            // Eğer speaker modundaysak ve ana ekran kapandıysa, ızgaraya düş.
-            const nextVid = document.querySelector('.video-card');
-            if (nextVid && state.layoutMode === 'speaker') {
-                setMainSpeaker(nextVid.id);
-            } else {
-                state.layoutMode = 'grid';
-                applyLayout();
-            }
-        }
-
         function applyLayout() {
             if (state.layoutMode === 'speaker' && state.mainSpeakerId) {
-                // Sahne Modu
                 els.videoArea.classList.remove('mode-grid');
                 els.videoArea.classList.add('mode-speaker');
                 
-                // Ana videoyu sahneye taşı
                 const mainEl = document.getElementById(state.mainSpeakerId);
-                if (mainEl) {
-                    mainEl.classList.add('main-speaker');
-                    els.stageWrapper.appendChild(mainEl);
-                }
+                if (mainEl) els.stageWrapper.appendChild(mainEl);
                 
-                // Diğerlerini Galeriye topla
                 document.querySelectorAll('.video-card').forEach(card => {
-                    if (card.id !== state.mainSpeakerId) {
-                        card.classList.remove('main-speaker');
-                        els.galleryWrapper.appendChild(card);
-                    }
+                    if (card.id !== state.mainSpeakerId) els.galleryWrapper.appendChild(card);
                 });
             } else {
-                // Grid Modu
                 els.videoArea.classList.remove('mode-speaker');
                 els.videoArea.classList.add('mode-grid');
                 
                 document.querySelectorAll('.video-card').forEach(card => {
-                    card.classList.remove('main-speaker');
                     els.galleryWrapper.appendChild(card);
                 });
             }
 
-            // DOM taşıması sonrası video donmasını engellemek için mini tetikleme
             setTimeout(() => {
                 document.querySelectorAll('video').forEach(vid => {
                     if (vid.srcObject && vid.paused) vid.play().catch(()=>{});
@@ -991,33 +1032,39 @@
             tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
             tag.innerHTML = `<i class="fas fa-${isScreenShare ? 'desktop' : (id.includes('timer') ? 'hourglass-half' : 'user')} text-[10px] ${id.includes('timer') ? 'text-yellow-400' : 'text-blue-400'}"></i> ${label}`;
             
-            // Çift tıklayınca sahneye al
+            // Çift tıklayınca sahneye al, sahnede ise ızgaraya dön
             div.addEventListener('dblclick', () => {
-                if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) clearMainSpeaker();
-                else setMainSpeaker(cardId);
+                if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) {
+                    state.mainSpeakerId = null;
+                    state.layoutMode = 'grid';
+                    applyLayout();
+                } else {
+                    setMainSpeaker(cardId);
+                }
             });
 
             div.appendChild(video);
             if (!isScreenShare && !id.includes('timer')) div.appendChild(placeholder); 
             div.appendChild(tag);
             
-            // Her video önce galeriye eklenir
             els.galleryWrapper.appendChild(div);
             
-            // --- YENİ: Başlangıçta Kendi Kameranı veya Ekran Paylaşımını Sahneye Al ---
-            if (!state.mainSpeakerId || isScreenShare || id.includes('timer')) {
+            // YENİ EKLEME MANTIĞI (ÖNCELİĞE GÖRE)
+            if (isScreenShare) {
                 setMainSpeaker(cardId);
+            } else if (!state.mainSpeakerId && state.layoutMode === 'speaker') {
+                state.mainSpeakerId = autoSelectMainSpeaker();
+                applyLayout();
             } else {
                 applyLayout();
             }
 
-            // YENİ: Katılım Sesi Çal
             if (id !== 'me' && !isScreenShare && !id.includes('timer')) {
                 playSound('join');
             }
         }
 
-        // --- ARAÇLAR, EKRAN PAYLAŞIMI VE DİĞERLERİ ---
+        // --- ARAÇLAR VE KAYIT ---
         els.btnRecordToggle.addEventListener('click', async () => {
             if (state.isRecording) {
                 state.mediaRecorder.stop();
@@ -1062,10 +1109,15 @@
                 
                 const screenId = 'vid-myscreen';
                 document.getElementById(screenId)?.remove();
-                if(state.mainSpeakerId === screenId) clearMainSpeaker();
+                
+                if(state.mainSpeakerId === screenId) {
+                    state.mainSpeakerId = autoSelectMainSpeaker();
+                    if (!state.mainSpeakerId) state.layoutMode = 'grid';
+                }
                 
                 state.screenCalls.forEach(call => call.close());
                 state.screenCalls = [];
+                applyLayout();
             } else {
                 try {
                     const shareStream = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
@@ -1163,7 +1215,12 @@
             
             const timerId = 'vid-tool-timer';
             document.getElementById(timerId)?.remove();
-            if(state.mainSpeakerId === timerId) clearMainSpeaker();
+            
+            if(state.mainSpeakerId === timerId) {
+                state.mainSpeakerId = autoSelectMainSpeaker();
+                if (!state.mainSpeakerId) state.layoutMode = 'grid';
+            }
+            applyLayout();
             
             els.btnTStart.classList.remove('hidden');
             els.btnTPause.classList.add('hidden');
@@ -1193,7 +1250,7 @@
         function removeParticipant(id) {
             const exists = state.participants.find(p => p.id === id);
             if (exists) {
-                playSound('leave'); // YENİ: Ayrılma sesi
+                playSound('leave'); 
                 state.participants = state.participants.filter(p => p.id !== id);
                 renderParticipants();
             }
@@ -1228,8 +1285,12 @@
             
             const pId = `vid-${peerId}`;
             document.getElementById(pId)?.remove();
-            if(state.mainSpeakerId === pId) clearMainSpeaker();
             
+            if(state.mainSpeakerId === pId) {
+                state.mainSpeakerId = autoSelectMainSpeaker();
+                if(!state.mainSpeakerId) state.layoutMode = 'grid';
+            }
+            applyLayout();
             removeParticipant(peerId);
         }
 
