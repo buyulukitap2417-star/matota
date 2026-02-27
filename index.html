@@ -20,20 +20,17 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
-                    animation: { 'float': 'float 6s ease-in-out infinite' },
-                    keyframes: { float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } } }
+                    animation: { 'float': 'float 6s ease-in-out infinite' }
                 }
             }
         }
     </script>
 
     <style>
-        /* --- KÖKLÜ MOBİL TAŞMA VE KAYBOLMA ÇÖZÜMÜ --- */
+        /* --- KÖKLÜ İSKELET ÇÖZÜMÜ --- */
         html, body {
-            position: fixed; /* Barları yok sayar, ekrana çivi gibi çakar */
-            top: 0; left: 0; right: 0; bottom: 0;
-            width: 100%;
-            height: 100%;
+            height: 100dvh; /* Barların ekranı bozmasını kesinlikle engeller */
+            width: 100vw;
             overflow: hidden;
             background: #0f172a;
             color: white;
@@ -47,11 +44,12 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* --- KUSURSUZ KAMERA VE SAHNE DÜZENİ (NO-SQUISH) --- */
-        /* Kamera Galerisi Varsayılan (Herkes Eşit) */
-        #gallery-area {
+        /* --- KUSURSUZ YERLEŞİM MİMARİSİ --- */
+        /* Standart Grid (Herkes Eşit) */
+        #grid-layout {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-auto-rows: minmax(180px, 1fr); /* Otomatik büyümeyi dengeler */
             align-content: center;
             justify-content: center;
             gap: 12px;
@@ -60,79 +58,104 @@
             overflow-y: auto;
         }
 
-        /* SPOTLIGHT: Ekran Paylaşımı Başladığında Galerinin Dönüşümü */
-        main.spotlight-active #gallery-area {
-            flex: 0 0 280px; /* Galeriyi sağa 280px olarak sabitle */
-            grid-template-columns: 1fr; /* Tek sütun */
-            align-content: start;
-        }
-
-        /* Ekran Paylaşım Sahnesi */
-        #stage-area {
-            flex: 1; /* Kalan tüm devasa alanı kaplar */
-            background: #000;
-            border-radius: 12px;
-            border: 2px solid #3b82f6;
-            display: none; /* Normalde gizli */
-            position: relative;
-            overflow: hidden;
-        }
-
-        main.spotlight-active #stage-area {
-            display: block; /* Ekran paylaşılınca görünür */
-        }
-
-        #stage-area video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain !important; /* Ekran ASLA kırpılmaz */
-        }
-
-        /* MOBİLDE SPOTLIGHT (Sahne Üstte, Kameralar Altta Yatay Şerit) */
-        @media (max-width: 768px) {
-            main.spotlight-active {
-                flex-direction: column !important;
-            }
-            main.spotlight-active #gallery-area {
-                flex: 0 0 130px; /* Altta 130px yüksekliğinde şerit */
-                display: flex; /* Mobilde gridi iptal et, yan yana diz */
-                flex-direction: row;
-                overflow-x: auto;
-                overflow-y: hidden;
-                gap: 8px;
-            }
-            main.spotlight-active #gallery-area .video-container {
-                width: 180px;
-                height: 100%;
-                flex-shrink: 0;
-                aspect-ratio: auto;
-            }
-        }
-
-        /* KUTU STİLLERİ VE ORAN KORUMA (SÜNMEYİ ENGELLER) */
-        .video-container {
-            position: relative;
-            border-radius: 12px;
-            overflow: hidden;
+        /* Video Kutu Temel Stili */
+        .video-card {
             background: #1e293b;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            aspect-ratio: 16 / 9; /* Sünmeyi engelleyen en kritik kural */
-            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
-            max-height: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        .video-container video {
+        .video-card video {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
 
-        /* Sohbet Mesajı Çıkış Animasyonu */
-        .chat-msg { animation: fadeIn 0.3s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* STANDART GRID İÇİNDEKİ VİDEOLAR */
+        #grid-layout .video-card {
+            width: 100%;
+            height: 100%;
+            max-height: 40vh; /* Dev gibi uzamasını engeller */
+            aspect-ratio: 16/9; /* Sünmeyi fiziksel olarak imkansız kılar */
+        }
+
+        /* SUNUM MODU (SPOTLIGHT) VİDEOLARI */
+        /* Sağ taraftaki kameralar */
+        #sidebar-container .video-card {
+            width: 100%;
+            height: 135px; /* Sünmeyi engelleyen kilit yükseklik */
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            /* Mobilde alttaki kameralar */
+            #sidebar-container .video-card {
+                width: 160px;
+                height: 90px;
+            }
+        }
+
+        /* Ekran Paylaşımı (Sahne) */
+        #stage-container .video-card {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            box-shadow: none;
+            border-radius: 0;
+        }
+        
+        #stage-container .video-card video {
+            object-fit: contain !important; /* Ekran tam sığsın, kırpılmasın */
+        }
+
+        .mirror-mode { transform: scaleX(-1); }
+
+        /* KAMERA KAPALI LOGOSU - KÜÇÜLTÜLDÜ */
+        .cam-placeholder {
+            position: absolute;
+            inset: 0;
+            background-color: #111827;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2; 
+            display: none; 
+            padding: 5px;
+        }
+
+        .cam-placeholder img {
+            max-width: 60px; /* Devasa olmasını engelledik */
+            max-height: 60px;
+            object-fit: contain;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .video-card.cam-off .cam-placeholder { display: flex; }
+        .video-card.is-screen-share .cam-placeholder { display: none !important; }
+        
+        /* --- KUSURSUZ YAN PANELLER --- */
+        .side-panel {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            height: 100%;
+            z-index: 150;
+            transform: translateX(100%); /* CSS ile kesin olarak gizlenir */
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Butonlar */
+        .btn-active { @apply bg-gray-700 hover:bg-gray-600 text-white; }
+        .btn-inactive { @apply bg-red-600 hover:bg-red-700 text-white border-red-600; }
+        .btn-loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; }
     </style>
 </head>
 <body class="flex flex-col">
@@ -147,7 +170,7 @@
     <!-- 1. LOBİ EKRANI -->
     <div id="lobby-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 bg-[#0f172a] hidden">
         <div class="text-center mb-6">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-indigo-500/30 mb-4">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-indigo-500/30 mb-4 animate-float">
                 <i class="fas fa-graduation-cap text-2xl text-white"></i>
             </div>
             <h1 id="app-title-display" class="text-3xl md:text-4xl font-bold tracking-tight text-white"></h1>
@@ -156,7 +179,7 @@
 
         <div class="glass-panel w-full max-w-4xl rounded-3xl p-2 flex flex-col md:flex-row shadow-2xl overflow-hidden">
             <div class="w-full md:w-1/2 bg-black/40 rounded-2xl overflow-hidden relative aspect-video group">
-                <video id="local-preview" autoplay muted playsinline class="w-full h-full object-cover transform scale-x-[-1]"></video>
+                <video id="local-preview" autoplay muted playsinline class="w-full h-full object-cover mirror-mode"></video>
                 <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-3 p-2 bg-black/60 backdrop-blur rounded-2xl border border-white/10 z-20">
                     <button id="prev-mic-btn" class="w-10 h-10 rounded-xl bg-gray-700 hover:bg-gray-600 text-white transition flex items-center justify-center"><i class="fas fa-microphone"></i></button>
                     <button id="prev-cam-btn" class="w-10 h-10 rounded-xl bg-gray-700 hover:bg-gray-600 text-white transition flex items-center justify-center"><i class="fas fa-video"></i></button>
@@ -186,9 +209,10 @@
     </div>
 
     <!-- 2. ODA EKRANI -->
-    <div id="room-screen" class="hidden h-full w-full flex flex-col relative bg-[#0b1120]">
-        <!-- ÜST BAR -->
-        <header class="h-14 glass-panel border-b border-white/5 flex items-center justify-between px-4 z-20 shrink-0">
+    <div id="room-screen" class="hidden flex-1 w-full flex flex-col relative bg-[#0b1120] overflow-hidden">
+        
+        <!-- HEADER -->
+        <header class="h-14 glass-panel border-b border-white/5 flex items-center justify-between px-4 shrink-0 z-20">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
                     <i class="fas fa-video text-xs"></i>
@@ -208,7 +232,6 @@
                     <span class="hidden sm:inline">Sohbet</span>
                     <span id="chat-notification" class="hidden bg-red-500 border-2 border-[#0f172a] w-3 h-3 rounded-full absolute -top-1 -right-1"></span>
                 </button>
-
                 <button onclick="toggleParticipants()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-300 border border-white/10 transition flex items-center gap-2 relative">
                     <i class="fas fa-users"></i> 
                     <span class="hidden sm:inline">Katılımcılar</span>
@@ -220,21 +243,28 @@
             </div>
         </header>
 
-        <!-- ANA İÇERİK (Kameralar ve Ekran) -->
-        <main id="main-content" class="flex-1 w-full flex flex-row relative p-3 gap-3 overflow-hidden">
+        <!-- MAIN İÇERİK MİMARİSİ (YEPYENİ VE KUSURSUZ) -->
+        <main class="flex-1 w-full relative flex p-2 gap-2 overflow-hidden">
             
-            <!-- A: EKRAN PAYLAŞIM SAHNESİ -->
-            <div id="stage-area">
-                <!-- Ekran Paylaşımı Buraya Gelecek -->
-            </div>
-            
-            <!-- B: KAMERA GALERİSİ -->
-            <div id="gallery-area">
-                <!-- Tüm Kameralar Buraya Gelecek -->
+            <!-- A: STANDART GRID -->
+            <div id="grid-layout" class="w-full h-full">
+                <!-- Kameralar buraya -->
             </div>
 
-            <!-- KATILIMCI LİSTESİ YAN PANELİ (Tailwind translate ile Kusursuz Kapanır) -->
-            <div id="participants-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-[150] p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
+            <!-- B: SUNUM MODU (SPOTLIGHT) -->
+            <div id="spotlight-layout" class="hidden w-full h-full flex-col md:flex-row gap-2">
+                <!-- Sahne -->
+                <div class="flex-1 bg-black rounded-xl overflow-hidden border border-gray-700 relative">
+                    <div id="stage-container" class="absolute inset-0 flex items-center justify-center"></div>
+                </div>
+                <!-- Kenar Şeridi -->
+                <div id="sidebar-container" class="w-full md:w-[260px] flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto overflow-y-hidden md:overflow-x-hidden shrink-0">
+                    <!-- Diğer Kameralar Buraya -->
+                </div>
+            </div>
+
+            <!-- KATILIMCI SIDEBAR -->
+            <div id="participants-sidebar" class="side-panel w-64 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 p-4 flex flex-col shadow-2xl">
                 <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2 shrink-0">
                     <h3 class="font-bold text-sm">Katılımcılar</h3>
                     <button onclick="toggleParticipants()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
@@ -242,8 +272,8 @@
                 <div id="participants-list" class="flex-1 overflow-y-auto space-y-2"></div>
             </div>
 
-            <!-- SOHBET YAN PANELİ (Tailwind translate ile Kusursuz Kapanır) -->
-            <div id="chat-sidebar" class="absolute top-0 bottom-0 right-0 h-full w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 z-[150] p-4 flex flex-col shadow-2xl transition-transform duration-300 translate-x-full">
+            <!-- SOHBET SIDEBAR -->
+            <div id="chat-sidebar" class="side-panel w-72 md:w-80 bg-[#0f172a]/95 backdrop-blur-xl border-l border-white/10 p-4 flex flex-col shadow-2xl">
                 <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2 shrink-0">
                     <h3 class="font-bold text-sm"><i class="fas fa-comments text-blue-400 mr-1"></i> Ders Sohbeti</h3>
                     <button onclick="toggleChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
@@ -256,34 +286,28 @@
                     <button id="btn-send-chat" class="bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-4 py-2 transition"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
+
         </main>
 
-        <!-- ALT KONTROL BAR (FOOTER) - Ekrana Kilitli -->
-        <footer class="flex items-center justify-center gap-2 py-3 px-4 shrink-0 z-[100] bg-[#0f172a] border-t border-white/5 w-full">
+        <!-- FOOTER -->
+        <footer class="shrink-0 z-[100] bg-[#0f172a] border-t border-white/5 w-full flex items-center justify-center py-3 px-4" style="padding-bottom: max(12px, env(safe-area-inset-bottom));">
             <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl border border-white/10">
-                <button id="toggle-mic" class="w-10 h-10 rounded-xl bg-gray-700 hover:bg-gray-600 text-white transition flex items-center justify-center text-lg" title="Mikrofon"><i class="fas fa-microphone"></i></button>
-                <button id="toggle-cam" class="w-10 h-10 rounded-xl bg-gray-700 hover:bg-gray-600 text-white transition flex items-center justify-center text-lg" title="Kamera"><i class="fas fa-video"></i></button>
-                
+                <button id="toggle-mic" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg" title="Mikrofon"><i class="fas fa-microphone"></i></button>
+                <button id="toggle-cam" class="w-10 h-10 rounded-xl btn-active transition flex items-center justify-center text-lg" title="Kamera"><i class="fas fa-video"></i></button>
                 <div class="w-px h-6 bg-gray-600 mx-1"></div>
-                
                 <button id="share-screen" class="w-10 h-10 rounded-xl bg-gray-700 hover:bg-blue-600 text-white transition flex items-center justify-center text-lg" title="Ekran Paylaş"><i class="fas fa-desktop"></i></button>
-                
-                <button id="btn-utilities" onclick="els.utilsModal.classList.remove('hidden')" class="hidden w-10 h-10 rounded-xl bg-gray-700 hover:bg-purple-600 text-white transition flex items-center justify-center text-lg" title="Yönetici Araçları">
-                    <i class="fas fa-toolbox"></i>
-                </button>
-
+                <button id="btn-utilities" onclick="els.utilsModal.classList.remove('hidden')" class="hidden w-10 h-10 rounded-xl bg-gray-700 hover:bg-purple-600 text-white transition flex items-center justify-center text-lg" title="Yönetici Araçları"><i class="fas fa-toolbox"></i></button>
                 <div class="w-px h-6 bg-gray-600 mx-1"></div>
                 <button id="leave-btn" class="w-12 h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white transition flex items-center justify-center text-lg shadow-lg shadow-red-900/20" title="Ayrıl"><i class="fas fa-phone-slash"></i></button>
             </div>
         </footer>
 
-        <!-- ARAÇLAR MODAL (POP-UP) -->
+        <!-- ARAÇLAR MODAL -->
         <div id="utils-modal" class="hidden fixed inset-0 z-[200] bg-black/70 flex items-center justify-center backdrop-blur-sm p-4">
             <div class="bg-gray-800 border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
                 <button onclick="els.utilsModal.classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
                 <h3 class="text-lg font-bold mb-5 flex items-center gap-2 border-b border-white/10 pb-3"><i class="fas fa-toolbox text-purple-400"></i> Yönetici Araçları</h3>
 
-                <!-- Araç 1: Kayıt -->
                 <div class="mb-6 bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                     <h4 class="text-xs text-gray-400 font-bold mb-2 uppercase flex justify-between">
                         <span><i class="fas fa-record-vinyl mr-1 text-red-500"></i> Ders Kaydı</span>
@@ -295,7 +319,6 @@
                     <p class="text-[10px] text-gray-500 mt-2">Dersi bilgisayarınıza WebM formatında kaydeder.</p>
                 </div>
 
-                <!-- Araç 2: Zamanlayıcı -->
                 <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                     <h4 class="text-xs text-gray-400 font-bold mb-2 uppercase"><i class="fas fa-hourglass-half mr-1 text-yellow-500"></i> Zamanlayıcı</h4>
                     <div class="flex gap-2 mb-3">
@@ -309,7 +332,7 @@
                         <button id="btn-timer-pause" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg py-2 text-sm transition font-medium hidden">Beklet</button>
                         <button id="btn-timer-stop" class="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-lg py-2 text-sm transition font-medium hidden">Kapat</button>
                     </div>
-                    <p class="text-[10px] text-gray-500 mt-2">Odaya süre sayan yeni bir katılımcı kamerası ekler.</p>
+                    <p class="text-[10px] text-gray-500 mt-2">Odaya süre sayan katılımcı kamerası ekler.</p>
                 </div>
             </div>
         </div>
@@ -366,9 +389,11 @@
             lobby: document.getElementById('lobby-screen'),
             room: document.getElementById('room-screen'),
             
-            mainContent: document.getElementById('main-content'),
-            stageArea: document.getElementById('stage-area'),
-            galleryArea: document.getElementById('gallery-area'),
+            // Layout Alanları
+            gridLayout: document.getElementById('grid-layout'),
+            spotlightLayout: document.getElementById('presentation-layout'),
+            stageContainer: document.getElementById('stage-container'),
+            sidebarContainer: document.getElementById('sidebar-container'),
             
             localPreview: document.getElementById('local-preview'),
             nickInput: document.getElementById('nickname-input'),
@@ -576,7 +601,7 @@
             
             state.peer.on('error', (err) => {
                 if(err.type === 'unavailable-id') {
-                    alert("Bu oda kodu şu an kullanımda. 10 saniye bekleyip tekrar deneyin.");
+                    alert("Bu oda kodu şu an kullanımda. Lütfen bekleyin.");
                     location.reload();
                 } else if (err.type === 'peer-unavailable') {
                     alert("Ders henüz başlatılmadı. Lütfen öğretmenin girmesini bekleyin.");
@@ -636,44 +661,33 @@
             });
         }
 
-        // --- KUSURSUZ SOHBET VE KATILIMCI GEÇİŞİ (Tailwind ile Animasyon) ---
+        // --- DÜZELTİLMİŞ KUSURSUZ SOHBET VE KATILIMCI ANİMASYONU ---
         window.toggleChat = () => {
-            const isHidden = els.chatSidebar.classList.contains('translate-x-full');
-            if(isHidden) {
-                els.chatSidebar.classList.remove('translate-x-full');
-                els.chatSidebar.classList.add('translate-x-0');
+            state.isChatOpen = !state.isChatOpen;
+            if(state.isChatOpen) {
+                // Direk stil üzerinden transform uyguluyoruz (Bozulması imkansız)
+                els.chatSidebar.style.transform = 'translateX(0)';
                 els.chatNotif.classList.add('hidden');
                 setTimeout(() => els.chatInput.focus(), 300);
                 
                 // Diğerini Kapat
-                els.sidebar.classList.add('translate-x-full');
-                els.sidebar.classList.remove('translate-x-0');
-                
-                state.isChatOpen = true;
                 state.isParticipantsOpen = false;
+                els.sidebar.style.transform = 'translateX(100%)';
             } else {
-                els.chatSidebar.classList.add('translate-x-full');
-                els.chatSidebar.classList.remove('translate-x-0');
-                state.isChatOpen = false;
+                els.chatSidebar.style.transform = 'translateX(100%)';
             }
         };
 
         window.toggleParticipants = () => {
-            const isHidden = els.sidebar.classList.contains('translate-x-full');
-            if(isHidden) {
-                els.sidebar.classList.remove('translate-x-full');
-                els.sidebar.classList.add('translate-x-0');
+            state.isParticipantsOpen = !state.isParticipantsOpen;
+            if(state.isParticipantsOpen) {
+                els.sidebar.style.transform = 'translateX(0)';
                 
-                // Diğerini Kapat
-                els.chatSidebar.classList.add('translate-x-full');
-                els.chatSidebar.classList.remove('translate-x-0');
-                
-                state.isParticipantsOpen = true;
+                // Sohbeti kapat
                 state.isChatOpen = false;
+                els.chatSidebar.style.transform = 'translateX(100%)';
             } else {
-                els.sidebar.classList.add('translate-x-full');
-                els.sidebar.classList.remove('translate-x-0');
-                state.isParticipantsOpen = false;
+                els.sidebar.style.transform = 'translateX(100%)';
             }
         };
 
@@ -705,7 +719,7 @@
         els.btnSendChat.addEventListener('click', sendChat);
         els.chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
 
-        // --- SOHBET GÖNDEREN GÖRÜNÜRLÜĞÜ GÜVENLİ VE ŞIK HALİ ---
+        // --- SOHBET GÖNDEREN GÖRÜNÜRLÜĞÜ (XSS KORUMALI) ---
         function appendChatMessage(data) {
             const isMe = data.sender === state.nickname;
             const div = document.createElement('div');
@@ -722,7 +736,7 @@
                 </div>
                 <div class="break-words text-[13px] leading-relaxed text-white chat-text-content"></div>
             `;
-            // Metni textContent ile koymak html bozulmasını (xss vs) engeller
+            
             div.querySelector('.chat-text-content').textContent = data.text;
             
             els.chatMessages.appendChild(div);
@@ -733,7 +747,7 @@
             }
         }
 
-        // --- EKRAN PAYLAŞIMI VE KAYIT ÇAKIŞMASINI ÖNLEYEN KESİN ÇÖZÜM ---
+        // --- EKRAN PAYLAŞIMI VE KAYIT ÇAKIŞMA ÇÖZÜMÜ ---
         els.btnRecordToggle.addEventListener('click', async () => {
             if (state.isRecording) {
                 state.mediaRecorder.stop();
@@ -820,38 +834,60 @@
             }
         });
 
-        // --- YENİLENEN KUSURSUZ LAYOUT MANTIĞI (SÜNMEYİ ENGELLER) ---
+        // --- YENİLENEN KUSURSUZ LAYOUT MANTIĞI (HTML DOM TAŞIMA) ---
         function recalculateLayout() {
-            // Ekranda .is-screen-share sınıfına sahip kutu var mı?
-            const hasScreenShare = document.querySelector('.video-container.is-screen-share');
-            
-            if (hasScreenShare) {
-                // Sahne Modu (Spotlight) Açık
-                els.mainContent.classList.add('spotlight-active');
+            const screenShareCard = document.getElementById('vid-myscreen') || document.querySelector('.is-screen-share');
+            const allVideoCards = document.querySelectorAll('.video-card:not(.is-screen-share)');
+
+            if (screenShareCard) {
+                // Sahne Modu Açık
+                els.gridLayout.classList.add('hidden');
+                els.spotlightLayout.classList.remove('hidden');
+                els.spotlightLayout.classList.add('flex');
+                
+                // Ekranı sahneye taşı
+                els.stageContainer.appendChild(screenShareCard);
+                
+                // Diğer kameraları şerite taşı
+                allVideoCards.forEach(card => els.sidebarContainer.appendChild(card));
             } else {
-                // Sahne Modu Kapalı (Standart Galeri)
-                els.mainContent.classList.remove('spotlight-active');
+                // Standart Grid Modu
+                els.spotlightLayout.classList.add('hidden');
+                els.spotlightLayout.classList.remove('flex');
+                els.gridLayout.classList.remove('hidden');
+                
+                // Kameraları gride geri taşı
+                allVideoCards.forEach(card => els.gridLayout.appendChild(card));
             }
+
+            // HTML DOM düğümleri taşındığında videolar duraklayabilir, bunu önlemek için tetikliyoruz:
+            setTimeout(() => {
+                document.querySelectorAll('video').forEach(vid => {
+                    if (vid.srcObject && vid.paused) {
+                        vid.play().catch(e => {}); // Sessizce oynatmaya zorla
+                    }
+                });
+            }, 50);
         }
 
         function addVideo(stream, label, isMuted, id, isScreenShare) {
             if(document.getElementById(`vid-${id}`)) return;
             const div = document.createElement('div');
-            div.className = 'video-container animate-fade-in group';
+            div.className = 'video-card animate-fade-in group';
             div.id = `vid-${id}`;
             
             if (isScreenShare) div.classList.add('is-screen-share');
 
             const placeholder = document.createElement('div');
             placeholder.className = 'cam-placeholder';
-            placeholder.innerHTML = `<img src="https://r.resimlink.com/ZmxWCl-R70.png" class="animate-pulse"><span class="text-gray-400 text-xs font-semibold tracking-wider mt-2">KAMERA KAPALI</span>`;
+            placeholder.innerHTML = `<img src="https://r.resimlink.com/ZmxWCl-R70.png" class="animate-pulse"><span class="text-gray-400 text-[10px] font-semibold tracking-wider mt-1">KAMERA KAPALI</span>`;
             
             const video = document.createElement('video');
             video.srcObject = stream;
             video.autoplay = true;
             video.playsInline = true;
             if (isMuted) video.muted = true;
-            if (id === 'me' && !isScreenShare) video.classList.add('transform', 'scale-x-[-1]');
+            if (id === 'me' && !isScreenShare) video.classList.add('mirror-mode');
             
             const tag = document.createElement('div');
             tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
@@ -861,13 +897,8 @@
             if (!isScreenShare && !id.includes('timer')) div.appendChild(placeholder); 
             div.appendChild(tag);
             
-            // DOM Taşımayı Bıraktık, Her şeyi yerine ekle
-            if (isScreenShare) {
-                els.stageArea.appendChild(div);
-            } else {
-                els.galleryArea.appendChild(div);
-            }
-            
+            // Başlangıçta Gride At
+            els.gridLayout.appendChild(div);
             recalculateLayout();
         }
 
