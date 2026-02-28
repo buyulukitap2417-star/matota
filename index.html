@@ -857,7 +857,8 @@
                             return;
                         }
 
-                        if (state.isWaitingRoomEnabled && !state.isTeacher) {
+                        // DÜZELTME: Öğretmen kendisi olup olmadığını kontrol etmemeli, direkt bekleme odası ayarına bakmalı
+                        if (state.isWaitingRoomEnabled) {
                             state.waitingUsers[conn.peer] = { conn: conn, name: data.name };
                             renderWaitingList();
                             conn.send({ type: 'waiting' });
