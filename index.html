@@ -847,6 +847,10 @@
             updateParticipantsList('me', nickVal, asTeacher);
             addVideo(state.localStream, `${nickVal} (Sen)`, true, 'me', false);
 
+            // YENİ: Lobide seçilen başlangıç durumlarını (Kamera/Mikrofon) ilk açılışta anında uygula!
+            togglePeerVideoPlaceholder('me', state.isCamOn);
+            togglePeerMicIndicator('me', state.isMicOn);
+
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher 
                 ? `${prefix}_${roomVal}_HOST` 
@@ -1540,8 +1544,13 @@
             if (container) {
                 const placeholder = container.querySelector('.cam-placeholder');
                 if (placeholder) {
-                    if (isEnabled) placeholder.style.display = 'none';
-                    else placeholder.style.display = 'flex';
+                    if (isEnabled) {
+                        placeholder.style.display = 'none';
+                        container.classList.remove('cam-off');
+                    } else {
+                        placeholder.style.display = 'flex';
+                        container.classList.add('cam-off');
+                    }
                 }
             }
         }
