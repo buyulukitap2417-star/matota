@@ -559,7 +559,8 @@
             
             isWaitingRoomEnabled: true,
             meetingPassword: '',
-            waitingUsers: {} 
+            waitingUsers: {},
+            waitingChimeInterval: null // YENİ: Bekleme odası zil döngüsü
         };
 
         const els = {
@@ -680,6 +681,15 @@
                     gain.gain.linearRampToValueAtTime(0, now + 0.15);
                     osc.start(now);
                     osc.stop(now + 0.15);
+                } else if (type === 'waiting') {
+                    // YENİ: Bekleme odası zili (Daha ince ve çok daha hafif bir ses)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1046.50, now); // İnce ve kibar bir ton
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.03, now + 0.05); // Sesi rahatsız etmeyecek seviyede (0.03) tutuyoruz
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
                 }
             } catch (e) {}
         }
@@ -1071,6 +1081,21 @@
                     `;
                     els.waitingList.appendChild(div);
                 });
+            }
+            
+            // YENİ: Bekleyen varsa zili 5 saniyede bir çal, yoksa zili durdur
+            if (keys.length > 0) {
+                if (!state.waitingChimeInterval) {
+                    playSound('waiting'); // İlk anda hemen çal
+                    state.waitingChimeInterval = setInterval(() => {
+                        playSound('waiting');
+                    }, 5000); // 5 saniyede bir tekrarla
+                }
+            } else {
+                if (state.waitingChimeInterval) {
+                    clearInterval(state.waitingChimeInterval);
+                    state.waitingChimeInterval = null;
+                }
             }
         }
 
