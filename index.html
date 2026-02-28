@@ -27,7 +27,6 @@
     </script>
 
     <style>
-        /* --- KÖKLÜ İSKELET ÇÖZÜMÜ --- */
         html, body {
             position: fixed; 
             top: 0; left: 0; right: 0; bottom: 0;
@@ -40,7 +39,6 @@
             padding: 0;
         }
 
-        /* --- ÖZEL İMLEÇ (CURSOR) VE TIKLAMA EFEKTİ --- */
         body * {
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="%233b82f6" stroke="rgba(255,255,255,0.8)" stroke-width="2"/></svg>') 12 12, auto;
         }
@@ -70,7 +68,6 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* --- KUSURSUZ YERLEŞİM MİMARİSİ --- */
         #video-area {
             flex: 1;
             width: 100%;
@@ -103,7 +100,7 @@
         }
 
         #stage-wrapper .video-card video {
-            object-fit: contain !important;
+            object-fit: contain !important; 
         }
 
         #gallery-wrapper {
@@ -459,7 +456,7 @@
     <script>
         // --- SAĞ TIK VE SEÇİM YASAĞI ---
         document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('selectstart', event => event.preventDefault()); // Metin seçimi engeli
+        document.addEventListener('selectstart', event => event.preventDefault()); 
 
         // --- TIKLAMA ANİMASYONU ---
         document.addEventListener('click', function(e) {
@@ -508,13 +505,12 @@
             toolTimerPaused: false,
             toolTimerCalls: [],
 
-            layoutMode: 'speaker', // Varsayılan Konuşmacı Modu
+            layoutMode: 'speaker', 
             mainSpeakerId: null,
             
-            // GÜVENLİK STATE'LERİ
             isWaitingRoomEnabled: true,
             meetingPassword: '',
-            waitingUsers: {} // peerId: { conn, name }
+            waitingUsers: {} 
         };
 
         const els = {
@@ -572,13 +568,11 @@
             btnTStop: document.getElementById('btn-timer-stop'),
             timerCanvas: document.getElementById('timer-canvas'),
             
-            // Güvenlik Ekranları
             waitingOverlay: document.getElementById('waiting-room-overlay'),
             passwordModal: document.getElementById('password-modal'),
             meetingPasswordInput: document.getElementById('meeting-password-input'),
             btnSubmitPassword: document.getElementById('btn-submit-password'),
             
-            // Hoca Yönetim Elemanları
             toggleWaitingRoom: document.getElementById('toggle-waiting-room'),
             adminPasswordInput: document.getElementById('admin-password-input'),
             btnSetPassword: document.getElementById('btn-set-password'),
@@ -667,7 +661,6 @@
                 els.nickInput.classList.add('bg-gray-800', 'text-gray-400', 'cursor-not-allowed');
             }
 
-            // DİNAMİK KARŞILAMA
             if (roomParam && nameParam) {
                 els.nickContainer.style.display = 'none';
                 els.roomContainer.style.display = 'none';
@@ -688,7 +681,7 @@
                 els.btnGroup.classList.add('grid-cols-1');
                 if (!(roomParam && nameParam)) els.roomHint.innerHTML = '<span class="text-blue-400 flex items-center gap-1"><i class="fas fa-chalkboard-teacher"></i> Öğretmen yetkisi algılandı.</span>';
                 if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
-            } else if (roleParam === 'student' || roomParam) {
+            } else if (roleParam === 'student') {
                 els.btnCreate.style.display = 'none'; 
                 els.btnGroup.classList.remove('grid-cols-2');
                 els.btnGroup.classList.add('grid-cols-1');
@@ -789,7 +782,8 @@
             updateParticipantsList('me', nickVal, asTeacher);
             addVideo(state.localStream, `${nickVal} (Sen)`, true, 'me', false);
 
-            const prefix = config.teacherName.replace(/\s+/g, '').toUpperCase();
+            // DÜZELTME: Kilitlenme sorununu çözen, sadece alfanümerik filtreli özel ID
+            const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher 
                 ? `${prefix}_${roomVal}_HOST` 
                 : `${prefix}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
@@ -801,34 +795,28 @@
                     els.status.innerText = "Ders Başlatıldı";
                     els.status.classList.add('text-green-400');
                 } else {
-                    // Öğrenci: İlk bağlantıyı kur, onay bekle
                     connectToHostForAuth(`${prefix}_${roomVal}_HOST`);
                 }
             });
 
-            // HOCA: GELEN VERİ BAĞLANTILARI VE BEKLEME ODASI ONAYI
             state.peer.on('connection', (conn) => {
                 conn.on('data', (data) => {
                     if (data.type === 'join-request') {
-                        // Şifre kontrolü
                         if (state.meetingPassword && data.password !== state.meetingPassword) {
                             conn.send({ type: 'password-required' });
                             return;
                         }
 
-                        // Bekleme Odası Kontrolü
-                        if (state.isWaitingRoomEnabled && !state.isTeacher /* Kendisi değilse */) {
+                        if (state.isWaitingRoomEnabled && !state.isTeacher) {
                             state.waitingUsers[conn.peer] = { conn: conn, name: data.name };
                             renderWaitingList();
                             conn.send({ type: 'waiting' });
                         } else {
-                            // Doğrudan kabul
                             state.dataConnections[conn.peer] = conn;
                             conn.send({ type: 'accepted', teacherName: state.nickname });
                             setupDataListener(conn);
                         }
                     }
-                    // Geri kalan datalar listener tarafından halledilir
                 });
                 
                 conn.on('close', () => {
@@ -839,7 +827,6 @@
                 });
             });
 
-            // MEDYA ARAMALARI
             state.peer.on('call', (call) => {
                 const isScreenShare = call.metadata && call.metadata.type === 'screen';
                 const isTimer = call.metadata && call.metadata.type === 'timer';
@@ -877,17 +864,26 @@
             });
             
             state.peer.on('error', (err) => {
+                // DÜZELTME: Öğretmen yanlışlıkla sayfayı yenilediğinde sistemden atılmasını engelleyen yapı.
                 if(err.type === 'unavailable-id') {
-                    alert("Sistemde bir hata var, lütfen tekrar deneyin.");
-                    window.location.href = "https://www.matota.online";
+                    if (state.isTeacher) {
+                        alert("Bu ders odası arka planda aktif görünüyor (Eski oturumunuz tam kapanmamış olabilir). Sistem temizleniyor, lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın.");
+                        resetUI();
+                    } else {
+                        alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin.");
+                        resetUI();
+                    }
                 } else if (err.type === 'peer-unavailable') {
-                    alert("Ders henüz başlatılmadı. Lütfen öğretmenin girmesini bekleyin.");
-                    window.location.href = "https://www.matota.online";
+                    if (!state.isTeacher) {
+                        alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Lütfen öğretmenin girmesini bekleyin.");
+                        window.location.href = "https://www.matota.online";
+                    } else {
+                        resetUI();
+                    }
                 }
             });
         }
 
-        // ÖĞRENCİ: DOĞRULAMA (ŞİFRE/BEKLEME) İÇİN BAĞLANMA
         function connectToHostForAuth(hostId, password = null) {
             const conn = state.peer.connect(hostId);
             els.status.innerText = "Doğrulanıyor...";
@@ -900,7 +896,7 @@
                 if (data.type === 'password-required') {
                     els.passwordModal.classList.remove('hidden');
                     els.passwordModal.classList.add('flex');
-                    conn.close(); // Şifre girilince yeni bağlantı açılacak
+                    conn.close(); 
                 } else if (data.type === 'waiting') {
                     els.passwordModal.classList.add('hidden');
                     els.passwordModal.classList.remove('flex');
@@ -908,7 +904,6 @@
                     els.waitingOverlay.classList.add('flex');
                     els.status.innerText = "Bekleme Odası";
                 } else if (data.type === 'accepted') {
-                    // KABUL EDİLDİ! Artık video gönderebiliriz.
                     els.waitingOverlay.classList.add('hidden');
                     els.waitingOverlay.classList.remove('flex');
                     els.passwordModal.classList.add('hidden');
@@ -919,7 +914,6 @@
                     state.dataConnections[hostId] = conn;
                     setupDataListener(conn);
 
-                    // Kamerayı Hoca'ya Yolla (İsmi metadata olarak ilet)
                     const call = state.peer.call(hostId, state.localStream, { metadata: { name: state.nickname } });
                     call.on('stream', (remoteStream) => {
                         const tName = data.teacherName || "Öğretmen";
@@ -938,16 +932,27 @@
             });
         }
 
-        // ÖĞRENCİ ŞİFRE GİRİŞ BUTONU
         els.btnSubmitPassword.addEventListener('click', () => {
             const pwd = els.meetingPasswordInput.value;
-            const prefix = config.teacherName.replace(/\s+/g, '').toUpperCase();
+            const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             connectToHostForAuth(`${prefix}_${state.roomName}_HOST`, pwd);
         });
 
         function resetButton(btn, txtEl, originalTxt) {
             btn.classList.remove('btn-loading');
             txtEl.innerHTML = originalTxt;
+        }
+
+        function resetUI() {
+            els.lobby.classList.remove('hidden');
+            els.room.classList.add('hidden');
+            resetButton(els.btnCreate, els.btnCreateText, '<i class="fas fa-chalkboard-teacher"></i> Kur (Hoca)');
+            resetButton(els.btnJoin, els.btnJoinText, '<i class="fas fa-user-graduate"></i> Katıl (Öğrenci)');
+            if(state.peer) state.peer.destroy();
+            if(state.timerInterval) clearInterval(state.timerInterval);
+            els.timer.classList.add('hidden');
+            els.timer.innerText = "00:00:00";
+            els.btnUtils.classList.add('hidden');
         }
 
         function setupDataListener(conn) {
@@ -967,7 +972,6 @@
             });
         }
 
-        // --- HOCA BEKLEYENLERİ YÖNETİMİ ---
         function renderWaitingList() {
             if(!state.isTeacher) return;
             const keys = Object.keys(state.waitingUsers);
@@ -1017,7 +1021,6 @@
             renderWaitingList();
         };
 
-        // --- KUSURSUZ YAN PANEL YÖNETİMİ ---
         window.toggleChat = () => {
             state.isChatOpen = !state.isChatOpen;
             if(state.isChatOpen) {
@@ -1060,7 +1063,7 @@
             if(state.isTeacher) {
                 broadcastData(msgObj);
             } else {
-                const prefix = config.teacherName.replace(/\s+/g, '').toUpperCase();
+                const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
                 const hostId = `${prefix}_${state.roomName}_HOST`;
                 if(state.dataConnections[hostId] && state.dataConnections[hostId].open) {
                     state.dataConnections[hostId].send(msgObj);
@@ -1099,8 +1102,7 @@
             }
         }
 
-        // --- ZEKİ ÖNCELİK VE LAYOUT MİMARİSİ ---
-        // Kural: 1.Ekran Paylaşımı > 2.Öğretmen > 3.Öğrenci > 4.Zamanlayıcı
+        // --- AKILLI ÖNCELİK ALGORİTMASI ---
         function autoSelectMainSpeaker() {
             const screenShare = document.querySelector('.is-screen-share');
             if (screenShare) return screenShare.id;
@@ -1199,7 +1201,7 @@
             
             const tag = document.createElement('div');
             tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
-            tag.innerHTML = `<i class="fas fa-${isScreenShare ? 'desktop' : (id.includes('timer') ? 'hourglass-half' : 'user')} text-[10px] ${id.includes('timer') ? 'text-yellow-400' : 'text-blue-400'}"></i> ${label}`;
+            tag.innerHTML = `<i class="fas fa-${isScreenShare ? 'desktop' : (id.includes('timer') ? 'hourglass-half' : 'user')} text-[10px] ${id.includes('timer') ? 'text-yellow-400' : 'text-blue-400'}"></i> <span class="max-w-[100px] truncate">${label}</span>`;
             
             div.addEventListener('dblclick', () => {
                 if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) {
@@ -1217,11 +1219,9 @@
             
             els.galleryWrapper.appendChild(div);
             
-            // --- ZEKİ ÖNCELİKLE SAHNEYE ALMA ---
             if (isScreenShare) {
                 setMainSpeaker(cardId);
             } else if (!state.mainSpeakerId || state.layoutMode === 'grid') {
-                // Her yeni videoda en rasyonel olanı sahneye alır
                 state.mainSpeakerId = autoSelectMainSpeaker();
                 state.layoutMode = 'speaker'; 
                 applyLayout();
@@ -1234,7 +1234,6 @@
             }
         }
 
-        // --- ARAÇLAR VE KAYIT ---
         els.btnRecordToggle.addEventListener('click', async () => {
             if (state.isRecording) {
                 state.mediaRecorder.stop();
