@@ -586,6 +586,11 @@
             personalizedWelcome: document.getElementById('personalized-welcome'),
             appTitle: document.getElementById('app-title-display'),
             welcomeMsg: document.getElementById('welcome-msg-display'),
+            btnGroup: document.getElementById('button-group'),
+            btnCreate: document.getElementById('create-btn'),
+            btnJoin: document.getElementById('join-btn'),
+            btnCreateText: document.getElementById('btn-create-text'),
+            btnJoinText: document.getElementById('btn-join-text'),
             
             btnMic: document.getElementById('toggle-mic'),
             btnCam: document.getElementById('toggle-cam'),
@@ -647,6 +652,7 @@
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
+
                 const now = audioCtx.currentTime;
                 
                 if (type === 'join') {
@@ -656,7 +662,8 @@
                     gain.gain.setValueAtTime(0, now);
                     gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
                     gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                    osc.start(now); osc.stop(now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
                 } else if (type === 'leave') {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(660, now);
@@ -664,14 +671,16 @@
                     gain.gain.setValueAtTime(0, now);
                     gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
                     gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                    osc.start(now); osc.stop(now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
                 } else if (type === 'chat') {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(880, now);
                     gain.gain.setValueAtTime(0, now);
                     gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
                     gain.gain.linearRampToValueAtTime(0, now + 0.15);
-                    osc.start(now); osc.stop(now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
                 }
             } catch (e) {}
         }
@@ -686,32 +695,32 @@
             } catch (e) {}
             
             document.title = config.appTitle;
-            els.appTitle.innerText = config.appTitle;
-            els.welcomeMsg.innerText = config.messages?.welcome || "Platforma Hoş Geldiniz";
-            els.nickInput.placeholder = `Örn: ${config.teacherName}`;
+            if(els.appTitle) els.appTitle.innerText = config.appTitle;
+            if(els.welcomeMsg) els.welcomeMsg.innerText = config.messages?.welcome || "Platforma Hoş Geldiniz";
+            if(els.nickInput) els.nickInput.placeholder = `Örn: ${config.teacherName}`;
             
             const params = new URLSearchParams(window.location.search);
             const roomParam = params.get('room');
             const nameParam = params.get('name');
             const roleParam = params.get('role'); 
             
-            if (roomParam) {
+            if (roomParam && els.roomInput) {
                 els.roomInput.value = roomParam;
                 els.roomInput.setAttribute('disabled', 'true');
                 els.roomInput.classList.add('bg-gray-800', 'text-gray-400', 'cursor-not-allowed');
-            } else {
+            } else if(els.roomInput) {
                 els.roomInput.value = config.defaultRoom;
             }
 
-            if (nameParam) {
+            if (nameParam && els.nickInput) {
                 els.nickInput.value = nameParam;
                 els.nickInput.setAttribute('disabled', 'true');
                 els.nickInput.classList.add('bg-gray-800', 'text-gray-400', 'cursor-not-allowed');
             }
 
-            if (roomParam && nameParam) {
-                els.nickContainer.style.display = 'none';
-                els.roomContainer.style.display = 'none';
+            if (roomParam && nameParam && els.personalizedWelcome) {
+                if(els.nickContainer) els.nickContainer.style.display = 'none';
+                if(els.roomContainer) els.roomContainer.style.display = 'none';
                 if(els.roomHint) els.roomHint.style.display = 'none';
                 
                 els.personalizedWelcome.classList.remove('hidden');
@@ -723,33 +732,30 @@
                 `;
             }
 
-            const btnCreate = document.getElementById('create-btn');
-            const btnJoin = document.getElementById('join-btn');
-            const btnGroup = document.getElementById('button-group');
-
-            if (roleParam === 'teacher') {
-                if(btnJoin) btnJoin.style.display = 'none'; 
-                if(btnGroup) { btnGroup.classList.remove('grid-cols-2'); btnGroup.classList.add('grid-cols-1'); }
-                if (!(roomParam && nameParam)) els.roomHint.innerHTML = '<span class="text-blue-400 flex items-center gap-1"><i class="fas fa-chalkboard-teacher"></i> Öğretmen yetkisi algılandı.</span>';
-                if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
-            } else if (roleParam === 'student') {
-                if(btnCreate) btnCreate.style.display = 'none'; 
-                if(btnGroup) { btnGroup.classList.remove('grid-cols-2'); btnGroup.classList.add('grid-cols-1'); }
-                if (!(roomParam && nameParam)) els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-user-graduate"></i> Öğrenci olarak katılım sağlanıyor.</span>';
-                if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
+            // --- YENİ ŞİFRELİ ROL KODLARI ---
+            if (roleParam === '7o7r2') { // ÖĞRETMEN KODU
+                if(els.btnJoin) els.btnJoin.style.display = 'none'; 
+                if(els.btnGroup) { els.btnGroup.classList.remove('grid-cols-2'); els.btnGroup.classList.add('grid-cols-1'); }
+                if (!(roomParam && nameParam) && els.roomHint) els.roomHint.innerHTML = '<span class="text-blue-400 flex items-center gap-1"><i class="fas fa-chalkboard-teacher"></i> Öğretmen yetkisi algılandı.</span>';
+                if(!nameParam && els.nickInput) setTimeout(() => els.nickInput.focus(), 500);
+            } else if (roleParam === '2s4t3') { // ÖĞRENCİ KODU
+                if(els.btnCreate) els.btnCreate.style.display = 'none'; 
+                if(els.btnGroup) { els.btnGroup.classList.remove('grid-cols-2'); els.btnGroup.classList.add('grid-cols-1'); }
+                if (!(roomParam && nameParam) && els.roomHint) els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-user-graduate"></i> Öğrenci olarak katılım sağlanıyor.</span>';
+                if(!nameParam && els.nickInput) setTimeout(() => els.nickInput.focus(), 500);
             }
 
             if(config.theme.backgroundGradient) document.body.style.backgroundImage = config.theme.backgroundGradient;
-            els.loader.style.display = 'none';
-            els.lobby.classList.remove('hidden');
+            if(els.loader) els.loader.style.display = 'none';
+            if(els.lobby) els.lobby.classList.remove('hidden');
         }
 
         async function getMediaStream() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 state.localStream = stream;
-                els.localPreview.srcObject = stream;
-                els.localPreview.muted = true;
+                if(els.localPreview) els.localPreview.srcObject = stream;
+                if(els.localPreview) els.localPreview.muted = true;
                 updateButtonUI(els.btnMic, true, 'fa-microphone', 'fa-microphone-slash');
                 updateButtonUI(els.btnCam, true, 'fa-video', 'fa-video-slash');
                 return true;
@@ -757,6 +763,7 @@
         }
 
         function updateButtonUI(btn, isActive, iconOn, iconOff) {
+            if(!btn) return;
             const i = btn.querySelector('i');
             if (isActive) {
                 btn.classList.remove('bg-red-600', 'hover:bg-red-700', 'border-red-600');
@@ -769,7 +776,7 @@
             }
         }
 
-        els.roomInput.addEventListener('input', (e) => {
+        if(els.roomInput) els.roomInput.addEventListener('input', (e) => {
             let val = e.target.value.toLowerCase();
             val = val.replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c');
             e.target.value = val.replace(/[^a-z0-9]/g, '');
@@ -783,15 +790,15 @@
                 const hh = String(Math.floor(diff / 3600000)).padStart(2, '0');
                 const mm = String(date.getUTCMinutes()).padStart(2, '0');
                 const ss = String(date.getUTCSeconds()).padStart(2, '0');
-                els.timer.innerText = `${hh}:${mm}:${ss}`;
+                if(els.timer) els.timer.innerText = `${hh}:${mm}:${ss}`;
             }, 1000);
         }
 
-        els.toggleWaitingRoom.addEventListener('change', (e) => {
+        if(els.toggleWaitingRoom) els.toggleWaitingRoom.addEventListener('change', (e) => {
             state.isWaitingRoomEnabled = e.target.checked;
         });
         
-        els.btnSetPassword.addEventListener('click', () => {
+        if(els.btnSetPassword) els.btnSetPassword.addEventListener('click', () => {
             state.meetingPassword = els.adminPasswordInput.value.trim();
             alert(state.meetingPassword ? 'Toplantı şifresi güncellendi.' : 'Toplantı şifresi kaldırıldı.');
         });
@@ -800,8 +807,8 @@
         async function startSession(asTeacher) {
             initAudio(); 
             
-            const btn = asTeacher ? document.getElementById('create-btn') : document.getElementById('join-btn');
-            const btnText = asTeacher ? document.getElementById('btn-create-text') : document.getElementById('btn-join-text');
+            const btn = asTeacher ? els.btnCreate : els.btnJoin;
+            const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
             const originalText = btnText ? btnText.innerHTML : (asTeacher ? "Kur (Hoca)" : "Katıl (Öğrenci)");
             
             if(btn) btn.classList.add('btn-loading');
@@ -820,13 +827,13 @@
             state.nickname = nickVal;
             state.isTeacher = asTeacher;
             
-            els.lobby.classList.add('hidden');
-            els.room.classList.remove('hidden');
-            els.roomTitle.innerText = `MATOTA / ${roomVal}`;
+            if(els.lobby) els.lobby.classList.add('hidden');
+            if(els.room) els.room.classList.remove('hidden');
+            if(els.roomTitle) els.roomTitle.innerText = `MATOTA / ${roomVal}`;
 
             if (asTeacher) {
-                els.timer.classList.remove('hidden');
-                els.btnUtils.classList.remove('hidden');
+                if(els.timer) els.timer.classList.remove('hidden');
+                if(els.btnUtils) els.btnUtils.classList.remove('hidden');
                 startTimer();
             }
 
@@ -842,8 +849,10 @@
 
             state.peer.on('open', (id) => {
                 if (asTeacher) {
-                    els.status.innerText = "Ders Başlatıldı";
-                    els.status.classList.add('text-green-400');
+                    if(els.status) {
+                        els.status.innerText = "Ders Başlatıldı";
+                        els.status.classList.add('text-green-400');
+                    }
                 } else {
                     connectToHostForAuth(`${prefix}_${roomVal}_HOST`);
                 }
@@ -857,8 +866,7 @@
                             return;
                         }
 
-                        // DÜZELTME: Öğretmen kendisi olup olmadığını kontrol etmemeli, direkt bekleme odası ayarına bakmalı
-                        if (state.isWaitingRoomEnabled) {
+                        if (state.isWaitingRoomEnabled && !state.isTeacher) {
                             state.waitingUsers[conn.peer] = { conn: conn, name: data.name };
                             renderWaitingList();
                             conn.send({ type: 'waiting' });
@@ -936,7 +944,7 @@
 
         function connectToHostForAuth(hostId, password = null) {
             const conn = state.peer.connect(hostId);
-            els.status.innerText = "Doğrulanıyor...";
+            if(els.status) els.status.innerText = "Doğrulanıyor...";
             
             conn.on('open', () => {
                 conn.send({ type: 'join-request', name: state.nickname, password: password });
@@ -944,22 +952,34 @@
 
             conn.on('data', (data) => {
                 if (data.type === 'password-required') {
-                    els.passwordModal.classList.remove('hidden');
-                    els.passwordModal.classList.add('flex');
+                    if(els.passwordModal) {
+                        els.passwordModal.classList.remove('hidden');
+                        els.passwordModal.classList.add('flex');
+                    }
                     conn.close(); 
                 } else if (data.type === 'waiting') {
-                    els.passwordModal.classList.add('hidden');
-                    els.passwordModal.classList.remove('flex');
-                    els.waitingOverlay.classList.remove('hidden');
-                    els.waitingOverlay.classList.add('flex');
-                    els.status.innerText = "Bekleme Odası";
+                    if(els.passwordModal) {
+                        els.passwordModal.classList.add('hidden');
+                        els.passwordModal.classList.remove('flex');
+                    }
+                    if(els.waitingOverlay) {
+                        els.waitingOverlay.classList.remove('hidden');
+                        els.waitingOverlay.classList.add('flex');
+                    }
+                    if(els.status) els.status.innerText = "Bekleme Odası";
                 } else if (data.type === 'accepted') {
-                    els.waitingOverlay.classList.add('hidden');
-                    els.waitingOverlay.classList.remove('flex');
-                    els.passwordModal.classList.add('hidden');
-                    els.passwordModal.classList.remove('flex');
-                    els.status.innerText = "Canlı Yayın";
-                    els.status.classList.add('text-green-400');
+                    if(els.waitingOverlay) {
+                        els.waitingOverlay.classList.add('hidden');
+                        els.waitingOverlay.classList.remove('flex');
+                    }
+                    if(els.passwordModal) {
+                        els.passwordModal.classList.add('hidden');
+                        els.passwordModal.classList.remove('flex');
+                    }
+                    if(els.status) {
+                        els.status.innerText = "Canlı Yayın";
+                        els.status.classList.add('text-green-400');
+                    }
                     
                     state.dataConnections[hostId] = conn;
                     setupDataListener(conn);
@@ -982,7 +1002,7 @@
             });
         }
 
-        els.btnSubmitPassword.addEventListener('click', () => {
+        if(els.btnSubmitPassword) els.btnSubmitPassword.addEventListener('click', () => {
             const pwd = els.meetingPasswordInput.value;
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             connectToHostForAuth(`${prefix}_${state.roomName}_HOST`, pwd);
@@ -994,14 +1014,16 @@
         }
 
         function resetUI(btn, txtEl, originalTxt) {
-            els.lobby.classList.remove('hidden');
-            els.room.classList.add('hidden');
+            if(els.lobby) els.lobby.classList.remove('hidden');
+            if(els.room) els.room.classList.add('hidden');
             resetButton(btn, txtEl, originalTxt);
             if(state.peer) state.peer.destroy();
             if(state.timerInterval) clearInterval(state.timerInterval);
-            els.timer.classList.add('hidden');
-            els.timer.innerText = "00:00:00";
-            els.btnUtils.classList.add('hidden');
+            if(els.timer) {
+                els.timer.classList.add('hidden');
+                els.timer.innerText = "00:00:00";
+            }
+            if(els.btnUtils) els.btnUtils.classList.add('hidden');
         }
 
         function setupDataListener(conn) {
@@ -1024,30 +1046,34 @@
         function renderWaitingList() {
             if(!state.isTeacher) return;
             const keys = Object.keys(state.waitingUsers);
-            els.waitingCount.innerText = keys.length;
+            if(els.waitingCount) els.waitingCount.innerText = keys.length;
             
-            if (keys.length > 0) {
-                els.waitingListSection.classList.remove('hidden');
-            } else {
-                els.waitingListSection.classList.add('hidden');
+            if(els.waitingListSection) {
+                if (keys.length > 0) {
+                    els.waitingListSection.classList.remove('hidden');
+                } else {
+                    els.waitingListSection.classList.add('hidden');
+                }
             }
 
-            els.waitingList.innerHTML = '';
-            keys.forEach(peerId => {
-                const user = state.waitingUsers[peerId];
-                const div = document.createElement('div');
-                div.className = 'flex items-center justify-between bg-white/5 p-2 rounded-lg text-xs';
-                div.innerHTML = `
-                    <div class="flex items-center gap-2 text-gray-300">
-                        <i class="fas fa-user-clock"></i> <span>${user.name}</span>
-                    </div>
-                    <div class="flex gap-1">
-                        <button onclick="admitUser('${peerId}')" class="bg-green-600 hover:bg-green-500 text-white w-6 h-6 rounded flex items-center justify-center transition"><i class="fas fa-check"></i></button>
-                        <button onclick="rejectUser('${peerId}')" class="bg-red-600 hover:bg-red-500 text-white w-6 h-6 rounded flex items-center justify-center transition"><i class="fas fa-times"></i></button>
-                    </div>
-                `;
-                els.waitingList.appendChild(div);
-            });
+            if(els.waitingList) {
+                els.waitingList.innerHTML = '';
+                keys.forEach(peerId => {
+                    const user = state.waitingUsers[peerId];
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between bg-white/5 p-2 rounded-lg text-xs';
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2 text-gray-300">
+                            <i class="fas fa-user-clock"></i> <span>${user.name}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="admitUser('${peerId}')" class="bg-green-600 hover:bg-green-500 text-white w-6 h-6 rounded flex items-center justify-center transition"><i class="fas fa-check"></i></button>
+                            <button onclick="rejectUser('${peerId}')" class="bg-red-600 hover:bg-red-500 text-white w-6 h-6 rounded flex items-center justify-center transition"><i class="fas fa-times"></i></button>
+                        </div>
+                    `;
+                    els.waitingList.appendChild(div);
+                });
+            }
         }
 
         window.admitUser = (peerId) => {
@@ -1072,28 +1098,31 @@
 
         // --- KUSURSUZ YAN PANEL (JS VE CSS ÇAKIŞMASIZ) ---
         window.toggleChat = () => {
+            if(!els.chatSidebar) return;
             const isChatOpen = els.chatSidebar.classList.contains('open');
             if(!isChatOpen) {
                 els.chatSidebar.classList.add('open');
-                els.chatNotif.classList.add('hidden');
-                setTimeout(() => els.chatInput.focus(), 300);
-                els.sidebar.classList.remove('open');
+                if(els.chatNotif) els.chatNotif.classList.add('hidden');
+                if(els.chatInput) setTimeout(() => els.chatInput.focus(), 300);
+                if(els.sidebar) els.sidebar.classList.remove('open');
             } else {
                 els.chatSidebar.classList.remove('open');
             }
         };
 
         window.toggleParticipants = () => {
+            if(!els.sidebar) return;
             const isPartOpen = els.sidebar.classList.contains('open');
             if(!isPartOpen) {
                 els.sidebar.classList.add('open');
-                els.chatSidebar.classList.remove('open');
+                if(els.chatSidebar) els.chatSidebar.classList.remove('open');
             } else {
                 els.sidebar.classList.remove('open');
             }
         };
 
         function sendChat() {
+            if(!els.chatInput) return;
             const text = els.chatInput.value.trim();
             if(!text) return;
             
@@ -1118,8 +1147,8 @@
             els.chatInput.value = '';
         }
 
-        els.btnSendChat.addEventListener('click', sendChat);
-        els.chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
+        if(els.btnSendChat) els.btnSendChat.addEventListener('click', sendChat);
+        if(els.chatInput) els.chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
 
         function appendChatMessage(data) {
             const isMe = data.sender === state.nickname;
@@ -1139,17 +1168,18 @@
             `;
             div.querySelector('.chat-text-content').textContent = data.text;
             
-            els.chatMessages.appendChild(div);
-            els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+            if(els.chatMessages) {
+                els.chatMessages.appendChild(div);
+                els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+            }
             
-            if(!els.chatSidebar.classList.contains('open') && !isMe) {
-                els.chatNotif.classList.remove('hidden');
+            if(els.chatSidebar && !els.chatSidebar.classList.contains('open') && !isMe) {
+                if(els.chatNotif) els.chatNotif.classList.remove('hidden');
                 playSound('chat');
             }
         }
 
-        // --- AKILLI ÖNCELİK ALGORİTMASI (KUSURSUZ) ---
-        // Sıralama: 1.Ekran Paylaşımı > 2.Öğretmen > 3.Öğrenciler > 4.Zamanlayıcı
+        // --- AKILLI ÖNCELİK ALGORİTMASI ---
         function autoSelectMainSpeaker() {
             const screenShare = document.querySelector('.is-screen-share');
             if (screenShare) return screenShare.id;
@@ -1168,18 +1198,16 @@
             }
             if (teacherCard) return teacherCard.id;
             
-            // 3. Öğrenciler (Öğretmen, ekran paylaşımı ve zamanlayıcı HARİÇ)
             const firstVid = document.querySelector('.video-card:not(.is-timer):not(#vid-me):not([id$="HOST"])');
             if (firstVid) return firstVid.id;
 
-            // 4. Zamanlayıcı (En son çare)
             const timerCard = document.querySelector('.is-timer');
             if (timerCard) return timerCard.id;
             
             return null;
         }
 
-        els.btnToggleLayout.addEventListener('click', () => {
+        if(els.btnToggleLayout) els.btnToggleLayout.addEventListener('click', () => {
             if (state.layoutMode === 'grid') {
                 state.mainSpeakerId = autoSelectMainSpeaker();
                 if (state.mainSpeakerId) {
@@ -1200,6 +1228,8 @@
         }
 
         function applyLayout() {
+            if(!els.videoArea || !els.stageWrapper || !els.galleryWrapper) return;
+            
             if (state.layoutMode === 'speaker' && state.mainSpeakerId) {
                 els.videoArea.classList.remove('mode-grid');
                 els.videoArea.classList.add('mode-speaker');
@@ -1239,7 +1269,12 @@
 
             const placeholder = document.createElement('div');
             placeholder.className = 'cam-placeholder';
-            placeholder.innerHTML = `<img src="https://r.resimlink.com/ZmxWCl-R70.png"><span class="text-gray-400 text-[10px] font-semibold tracking-wider mt-1">KAMERA KAPALI</span>`;
+            placeholder.innerHTML = `
+                <div class="w-14 h-14 rounded-full bg-gray-800 border border-gray-600 shadow-inner flex items-center justify-center mb-2">
+                    <i class="fas fa-video-slash text-2xl text-gray-400"></i>
+                </div>
+                <span class="text-gray-400 text-[10px] font-bold tracking-wider mt-1 bg-black/40 px-2 py-1 rounded">KAMERA KAPALI</span>
+            `;
             
             const video = document.createElement('video');
             video.srcObject = stream;
@@ -1266,9 +1301,8 @@
             if (!isScreenShare && !id.includes('timer')) div.appendChild(placeholder); 
             div.appendChild(tag);
             
-            els.galleryWrapper.appendChild(div);
+            if(els.galleryWrapper) els.galleryWrapper.appendChild(div);
             
-            // HER GİRİŞTE AKILLI ALGORTİMA ÇALIŞIR
             if (isScreenShare) {
                 setMainSpeaker(cardId);
             } else if (!state.mainSpeakerId || state.layoutMode === 'grid') {
@@ -1284,13 +1318,13 @@
             }
         }
 
-        els.btnRecordToggle.addEventListener('click', async () => {
+        if(els.btnRecordToggle) els.btnRecordToggle.addEventListener('click', async () => {
             if (state.isRecording) {
                 state.mediaRecorder.stop();
                 state.isRecording = false;
                 els.btnRecordToggle.innerHTML = '<i class="fas fa-play text-xs"></i> Kaydı Başlat';
                 els.btnRecordToggle.className = 'w-full bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white rounded-lg py-2 text-sm flex items-center justify-center gap-2 transition';
-                els.recordStatus.classList.add('hidden');
+                if(els.recordStatus) els.recordStatus.classList.add('hidden');
                 if (state.recordingStream) state.recordingStream.getTracks().forEach(t => t.stop());
                 state.recordingStream = null;
             } else {
@@ -1314,12 +1348,12 @@
                     state.isRecording = true;
                     els.btnRecordToggle.innerHTML = '<i class="fas fa-stop text-xs"></i> Kaydı Bitir ve İndir';
                     els.btnRecordToggle.className = 'w-full bg-red-600 hover:bg-red-500 text-white rounded-lg py-2 text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-red-900/50';
-                    els.recordStatus.classList.remove('hidden');
+                    if(els.recordStatus) els.recordStatus.classList.remove('hidden');
                 } catch (e) { alert("Kayıt başlatılamadı. Ekran izni vermelisiniz."); }
             }
         });
 
-        els.btnScreen.addEventListener('click', async () => {
+        if(els.btnScreen) els.btnScreen.addEventListener('click', async () => {
             if (state.screenStream) {
                 state.screenStream.getTracks().forEach(track => track.stop());
                 state.screenStream = null;
@@ -1384,7 +1418,7 @@
             }
         }
 
-        els.btnTStart.addEventListener('click', () => {
+        if(els.btnTStart) els.btnTStart.addEventListener('click', () => {
             const minutes = parseInt(els.timerMinInput.value) || 5;
             if (state.toolTimerStream && !state.toolTimerPaused) return; 
             if (state.toolTimerPaused) {
@@ -1413,19 +1447,19 @@
                 }
             });
             els.btnTStart.classList.add('hidden');
-            els.btnTPause.classList.remove('hidden');
-            els.btnTStop.classList.remove('hidden');
-            els.timerMinInput.disabled = true;
+            if(els.btnTPause) els.btnTPause.classList.remove('hidden');
+            if(els.btnTStop) els.btnTStop.classList.remove('hidden');
+            if(els.timerMinInput) els.timerMinInput.disabled = true;
         });
 
-        els.btnTPause.addEventListener('click', () => {
+        if(els.btnTPause) els.btnTPause.addEventListener('click', () => {
             state.toolTimerPaused = true;
             drawTimerOnCanvas(els.timerCanvas.getContext('2d'), els.timerCanvas, els.timerCanvas.width, els.timerCanvas.height);
             els.btnTPause.innerText = 'Devam Et';
             els.btnTPause.classList.replace('bg-yellow-600', 'bg-blue-600');
         });
 
-        els.btnTStop.addEventListener('click', () => {
+        if(els.btnTStop) els.btnTStop.addEventListener('click', () => {
             if (state.toolTimerInterval) clearInterval(state.toolTimerInterval);
             if (state.toolTimerStream) state.toolTimerStream.getTracks().forEach(t => t.stop());
             state.toolTimerStream = null;
@@ -1441,12 +1475,12 @@
             }
             applyLayout();
             
-            els.btnTStart.classList.remove('hidden');
-            els.btnTPause.classList.add('hidden');
-            els.btnTStop.classList.add('hidden');
-            els.btnTPause.innerText = 'Beklet'; 
-            els.btnTPause.classList.replace('bg-blue-600', 'bg-yellow-600');
-            els.timerMinInput.disabled = false;
+            if(els.btnTStart) els.btnTStart.classList.remove('hidden');
+            if(els.btnTPause) els.btnTPause.classList.add('hidden');
+            if(els.btnTStop) els.btnTStop.classList.add('hidden');
+            if(els.btnTPause) els.btnTPause.innerText = 'Beklet'; 
+            if(els.btnTPause) els.btnTPause.classList.replace('bg-blue-600', 'bg-yellow-600');
+            if(els.timerMinInput) els.timerMinInput.disabled = false;
         });
 
         function togglePeerVideoPlaceholder(peerId, isEnabled) {
@@ -1476,8 +1510,8 @@
         }
 
         function renderParticipants() {
-            els.pCount.innerText = state.participants.length;
-            els.pList.innerHTML = '';
+            if(els.pCount) els.pCount.innerText = state.participants.length;
+            if(els.pList) els.pList.innerHTML = '';
             state.participants.forEach(p => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between bg-white/5 p-2 rounded-lg text-xs';
@@ -1492,7 +1526,7 @@
                     kickBtn.onclick = () => kickUser(p.id);
                     item.appendChild(kickBtn);
                 }
-                els.pList.appendChild(item);
+                if(els.pList) els.pList.appendChild(item);
             });
         }
 
@@ -1533,23 +1567,21 @@
             broadcastData({ type: 'cam-status', enabled: state.isCamOn });
         }
 
-        const btnCreate = document.getElementById('create-btn');
-        const btnJoin = document.getElementById('join-btn');
-        if(btnCreate) btnCreate.addEventListener('click', () => { startSession(true); });
-        if(btnJoin) btnJoin.addEventListener('click', () => { startSession(false); });
+        if(els.btnCreate) els.btnCreate.addEventListener('click', () => { initAudio(); startSession(true); });
+        if(els.btnJoin) els.btnJoin.addEventListener('click', () => { initAudio(); startSession(false); });
         
-        els.btnMic.addEventListener('click', toggleAudio);
-        els.prevMic.addEventListener('click', toggleAudio);
-        els.btnCam.addEventListener('click', toggleVideo);
-        els.prevCam.addEventListener('click', toggleVideo);
+        if(els.btnMic) els.btnMic.addEventListener('click', toggleAudio);
+        if(els.prevMic) els.prevMic.addEventListener('click', toggleAudio);
+        if(els.btnCam) els.btnCam.addEventListener('click', toggleVideo);
+        if(els.prevCam) els.prevCam.addEventListener('click', toggleVideo);
         
         window.copyLink = () => {
-            const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}&role=student`;
+            const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}&role=2s4t3`;
             navigator.clipboard.writeText(url);
             alert("Öğrenci Katılım Linki Kopyalandı!");
         };
 
-        els.btnLeave.addEventListener('click', () => {
+        if(els.btnLeave) els.btnLeave.addEventListener('click', () => {
             window.location.href = "https://www.matota.online";
         });
         window.addEventListener("beforeunload", () => { if (state.peer) state.peer.destroy(); });
