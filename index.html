@@ -628,22 +628,41 @@
             els.welcomeMsg.innerText = config.messages.welcome;
             els.nickInput.placeholder = `Örn: ${config.teacherName}`;
             
+            // --- ENTEGRASYON: URL PARAMETRELERİNİ OKUMA ---
             const params = new URLSearchParams(window.location.search);
             const roomParam = params.get('room');
+            const nameParam = params.get('name');
+            const roleParam = params.get('role'); // 'teacher' veya 'student'
             
+            // 1. ODA KODU AYARI
             if (roomParam) {
                 els.roomInput.value = roomParam;
                 els.roomInput.setAttribute('disabled', 'true');
                 els.roomInput.classList.add('bg-gray-800', 'text-gray-400', 'cursor-not-allowed');
-                els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-link"></i> Davet linki algılandı.</span>';
-                
-                els.btnCreate.style.display = 'none';
-                els.btnGroup.classList.remove('grid-cols-2');
-                els.btnGroup.classList.add('grid-cols-1');
-                
-                setTimeout(() => els.nickInput.focus(), 500);
             } else {
                 els.roomInput.value = config.defaultRoom;
+            }
+
+            // 2. İSİM AYARI
+            if (nameParam) {
+                els.nickInput.value = nameParam;
+                els.nickInput.setAttribute('disabled', 'true');
+                els.nickInput.classList.add('bg-gray-800', 'text-gray-400', 'cursor-not-allowed');
+            }
+
+            // 3. ROL AYARI (BUTONLARI GİZLE/GÖSTER)
+            if (roleParam === 'teacher') {
+                els.btnJoin.style.display = 'none'; // Öğrenci butonunu gizle
+                els.btnGroup.classList.remove('grid-cols-2');
+                els.btnGroup.classList.add('grid-cols-1');
+                els.roomHint.innerHTML = '<span class="text-blue-400 flex items-center gap-1"><i class="fas fa-chalkboard-teacher"></i> Öğretmen yetkisi algılandı.</span>';
+                if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
+            } else if (roleParam === 'student' || roomParam) {
+                els.btnCreate.style.display = 'none'; // Hoca butonunu gizle
+                els.btnGroup.classList.remove('grid-cols-2');
+                els.btnGroup.classList.add('grid-cols-1');
+                els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-user-graduate"></i> Öğrenci olarak katılım sağlanıyor.</span>';
+                if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
             }
 
             if(config.theme.backgroundGradient) document.body.style.backgroundImage = config.theme.backgroundGradient;
@@ -1321,10 +1340,11 @@
         els.btnCam.addEventListener('click', toggleVideo);
         els.prevCam.addEventListener('click', toggleVideo);
         
+        // Kopyalanan linkin sadece öğrenci linki olmasını sağladık
         window.copyLink = () => {
-            const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}`;
+            const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}&role=student`;
             navigator.clipboard.writeText(url);
-            alert("Link Kopyalandı!");
+            alert("Öğrenci Katılım Linki Kopyalandı!");
         };
 
         els.btnLeave.addEventListener('click', () => location.reload());
