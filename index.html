@@ -311,11 +311,15 @@
             </div>
 
             <div class="w-full md:w-1/2 p-6 flex flex-col justify-center gap-4">
-                <div>
+                <!-- YENİ: Özelleştirilmiş Karşılama Mesajı -->
+                <div id="personalized-welcome" class="hidden text-center flex-col gap-2 bg-gray-900/50 border border-gray-700 rounded-xl p-6 shadow-inner">
+                </div>
+
+                <div id="nickname-container">
                     <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Kullanıcı Adı</label>
                     <input type="text" id="nickname-input" class="w-full mt-1 bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-sm">
                 </div>
-                <div>
+                <div id="room-container">
                     <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Oda Kodu</label>
                     <input type="text" id="room-input" placeholder="ör: matematik" class="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none transition font-mono text-sm">
                     <p id="room-hint" class="text-[10px] text-gray-500 mt-1 ml-1">* Oda kodu otomatik küçük harfe çevrilir.</p>
@@ -517,6 +521,7 @@
             lobby: document.getElementById('lobby-screen'),
             room: document.getElementById('room-screen'),
             
+            // Layout Alanları
             videoArea: document.getElementById('video-area'),
             stageWrapper: document.getElementById('stage-wrapper'),
             galleryWrapper: document.getElementById('gallery-wrapper'),
@@ -525,6 +530,9 @@
             nickInput: document.getElementById('nickname-input'),
             roomInput: document.getElementById('room-input'),
             roomHint: document.getElementById('room-hint'),
+            nickContainer: document.getElementById('nickname-container'),
+            roomContainer: document.getElementById('room-container'),
+            personalizedWelcome: document.getElementById('personalized-welcome'),
             appTitle: document.getElementById('app-title-display'),
             welcomeMsg: document.getElementById('welcome-msg-display'),
             btnGroup: document.getElementById('button-group'),
@@ -650,18 +658,33 @@
                 els.nickInput.classList.add('bg-gray-800', 'text-gray-400', 'cursor-not-allowed');
             }
 
-            // 3. ROL AYARI (BUTONLARI GİZLE/GÖSTER)
+            // 3. EĞER İKİSİ DE VARSA KUTULARI GİZLE, ŞIK KARŞILAMA GÖSTER
+            if (roomParam && nameParam) {
+                els.nickContainer.style.display = 'none';
+                els.roomContainer.style.display = 'none';
+                if(els.roomHint) els.roomHint.style.display = 'none';
+                
+                els.personalizedWelcome.classList.remove('hidden');
+                els.personalizedWelcome.classList.add('flex');
+                els.personalizedWelcome.innerHTML = `
+                    <span class="text-blue-400 font-bold text-2xl uppercase tracking-widest">${roomParam}</span>
+                    <span class="text-sm text-gray-400">Dersine Hoş Geldin</span>
+                    <span class="text-white font-bold text-lg mt-1">${nameParam}</span>
+                `;
+            }
+
+            // 4. ROL AYARI (BUTONLARI GİZLE/GÖSTER)
             if (roleParam === 'teacher') {
-                els.btnJoin.style.display = 'none'; // Öğrenci butonunu gizle
+                els.btnJoin.style.display = 'none'; 
                 els.btnGroup.classList.remove('grid-cols-2');
                 els.btnGroup.classList.add('grid-cols-1');
-                els.roomHint.innerHTML = '<span class="text-blue-400 flex items-center gap-1"><i class="fas fa-chalkboard-teacher"></i> Öğretmen yetkisi algılandı.</span>';
+                if (!(roomParam && nameParam)) els.roomHint.innerHTML = '<span class="text-blue-400 flex items-center gap-1"><i class="fas fa-chalkboard-teacher"></i> Öğretmen yetkisi algılandı.</span>';
                 if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
             } else if (roleParam === 'student' || roomParam) {
-                els.btnCreate.style.display = 'none'; // Hoca butonunu gizle
+                els.btnCreate.style.display = 'none'; 
                 els.btnGroup.classList.remove('grid-cols-2');
                 els.btnGroup.classList.add('grid-cols-1');
-                els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-user-graduate"></i> Öğrenci olarak katılım sağlanıyor.</span>';
+                if (!(roomParam && nameParam)) els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-user-graduate"></i> Öğrenci olarak katılım sağlanıyor.</span>';
                 if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
             }
 
@@ -804,8 +827,8 @@
             
             state.peer.on('error', (err) => {
                 if(err.type === 'unavailable-id') {
-                    alert("Bu oda kodu şu an kullanımda. Lütfen bekleyin.");
-                    location.reload();
+                    alert("Bu oda kodu şu an kullanımda. Ana sayfaya yönlendiriliyorsunuz...");
+                    window.location.href = "https://www.matota.online";
                 } else if (err.type === 'peer-unavailable') {
                     alert("Ders henüz başlatılmadı. Lütfen öğretmenin girmesini bekleyin.");
                     resetUI();
@@ -838,8 +861,8 @@
                 els.status.innerText = "Canlı Yayın";
             });
             call.on('close', () => {
-                alert("Öğretmen dersi sonlandırdı. Çıkış yapılıyor...");
-                location.reload();
+                alert("Öğretmen dersi sonlandırdı. Ana sayfaya yönlendiriliyorsunuz...");
+                window.location.href = "https://www.matota.online";
             });
             state.activeCalls[hostId] = call;
             const conn = state.peer.connect(hostId);
@@ -849,7 +872,7 @@
 
         function setupDataListener(conn) {
             conn.on('data', (data) => {
-                if(data.type === 'kick') { alert("Dersten çıkarıldınız."); location.reload(); }
+                if(data.type === 'kick') { alert("Dersten çıkarıldınız. Ana sayfaya yönlendiriliyorsunuz..."); window.location.href = "https://www.matota.online"; }
                 if(data.type === 'cam-status') togglePeerVideoPlaceholder(conn.peer, data.enabled);
                 if(data.type === 'chat') {
                     appendChatMessage(data);
@@ -1347,7 +1370,9 @@
             alert("Öğrenci Katılım Linki Kopyalandı!");
         };
 
-        els.btnLeave.addEventListener('click', () => location.reload());
+        els.btnLeave.addEventListener('click', () => {
+            window.location.href = "https://www.matota.online";
+        });
         window.addEventListener("beforeunload", () => { if (state.peer) state.peer.destroy(); });
         
         window.addEventListener('load', () => {
