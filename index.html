@@ -27,6 +27,7 @@
     </script>
 
     <style>
+        /* --- KESİN İSKELET VE GÜVENLİK --- */
         html, body {
             position: fixed; 
             top: 0; left: 0; right: 0; bottom: 0;
@@ -37,12 +38,15 @@
             color: white;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
+        *, *::before, *::after { box-sizing: inherit; }
 
+        /* ÖZEL İMLEÇ (CURSOR) VE TIKLAMA EFEKTİ */
         body * {
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="%233b82f6" stroke="rgba(255,255,255,0.8)" stroke-width="2"/></svg>') 12 12, auto;
         }
-        button, a, input, [onclick], .video-card, .cursor-pointer {
+        button, a, input, [onclick], .video-card, .cursor-pointer, .glass-panel {
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="%2310b981" stroke="rgba(255,255,255,0.8)" stroke-width="2"/></svg>') 12 12, pointer !important;
         }
 
@@ -68,6 +72,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        /* --- KUSURSUZ YERLEŞİM MİMARİSİ (HİÇBİR ZAMAN SÜNMEZ) --- */
         #video-area {
             flex: 1;
             width: 100%;
@@ -76,10 +81,12 @@
             flex-direction: row;
             gap: 16px;
             padding: 16px;
-            padding-bottom: 100px; 
+            padding-bottom: 90px; /* Floating barın arkasında video kalmasını önler */
             overflow: hidden;
+            position: relative;
         }
 
+        /* 1. SAHNE (Sadece Sunum/Konuşmacı Modunda Görünür) */
         #stage-wrapper {
             flex: 1; 
             height: 100%;
@@ -89,75 +96,103 @@
             border: 2px solid #3b82f6;
             display: none; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
         }
 
         #stage-wrapper .video-card {
             width: 100%;
-            height: 100%;
+            height: 100% !important;
             border-radius: 0;
             box-shadow: none;
             max-height: none;
+            flex: unset !important;
         }
 
         #stage-wrapper .video-card video {
-            object-fit: contain !important; 
+            object-fit: contain !important; /* Ekran tam sığar */
         }
 
+        /* 2. GALERİ / YAN ŞERİT */
         #gallery-wrapper {
             height: 100%;
             overflow-y: auto; 
             overflow-x: hidden;
             scrollbar-width: thin;
-            transition: all 0.3s ease;
         }
 
+        /* DURUM A: IZGARA MODU (Varsayılan - Tüm Ekranı Kaplar) */
         #video-area.mode-grid #gallery-wrapper {
             flex: 1; 
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-auto-rows: 240px; /* Sabit yükseklik, uzamayı engeller */
             align-content: center;
             justify-content: center;
             gap: 16px;
         }
 
         #video-area.mode-grid .video-card {
-            flex: 1 1 320px; 
-            max-width: 600px; 
-            height: auto;
-            aspect-ratio: 16 / 9; 
+            width: 100%;
+            height: 100% !important;
+            max-height: 100% !important;
         }
 
-        #video-area.mode-speaker #stage-wrapper { display: block; }
+        /* DURUM B: KONUŞMACI MODU (Sağda Sabit İnce Şerit) */
+        #video-area.mode-speaker #stage-wrapper {
+            display: flex; /* Sahneyi aç */
+        }
+
         #video-area.mode-speaker #gallery-wrapper {
-            width: 260px; 
+            width: 260px; /* Kesin genişlik */
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
             align-items: center;
+            padding-right: 4px;
         }
+
+        /* BU KURAL SÜNMEYİ İMKANSIZ KILAR */
         #video-area.mode-speaker #gallery-wrapper .video-card {
             width: 100%;
             height: 146px !important; 
-            flex-shrink: 0;
-            aspect-ratio: 16 / 9;
+            min-height: 146px !important;
+            max-height: 146px !important;
+            flex: 0 0 146px !important; 
         }
 
+        /* MOBİL DÜZEN (Sahne Üstte, Kameralar Altta) */
         @media (max-width: 768px) {
-            #video-area { flex-direction: column; padding-bottom: 90px; }
-            #video-area.mode-speaker #stage-wrapper { flex: 1; min-height: 40vh; }
+            #video-area {
+                flex-direction: column;
+                padding-bottom: 80px;
+            }
+            #video-area.mode-grid #gallery-wrapper {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                grid-auto-rows: 150px;
+            }
+            #video-area.mode-speaker #stage-wrapper {
+                flex: 1;
+                min-height: 40vh;
+            }
             #video-area.mode-speaker #gallery-wrapper {
                 width: 100%;
-                height: 130px;
+                height: 120px;
                 flex-direction: row;
                 overflow-x: auto;
                 overflow-y: hidden;
                 padding-bottom: 8px;
             }
-            #video-area.mode-speaker #gallery-wrapper .video-card { width: 180px; height: 100px !important; }
-            #video-area.mode-grid .video-card { max-width: 100%; }
+            #video-area.mode-speaker #gallery-wrapper .video-card {
+                width: 160px !important;
+                height: 90px !important; 
+                min-height: 90px !important;
+                max-height: 90px !important;
+                flex: 0 0 160px !important;
+            }
         }
 
+        /* --- VİDEO KUTUSU STİLLERİ --- */
         .video-card {
             position: relative;
             border-radius: 12px;
@@ -169,7 +204,14 @@
             align-items: center;
             cursor: pointer; 
         }
-        .video-card video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+
+        .video-card video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+        
         .mirror-mode { transform: scaleX(-1); }
 
         .cam-placeholder {
@@ -183,12 +225,20 @@
             z-index: 2; 
             display: none; 
         }
-        .cam-placeholder img { max-width: 60px; max-height: 60px; object-fit: contain; opacity: 0.8; margin-bottom: 6px; }
+
+        .cam-placeholder img {
+            max-width: 50px; 
+            max-height: 50px;
+            object-fit: contain;
+            opacity: 0.8;
+            margin-bottom: 6px;
+        }
 
         .video-card.cam-off .cam-placeholder { display: flex; }
         .video-card.is-screen-share .cam-placeholder,
         .video-card.is-timer .cam-placeholder { display: none !important; }
         
+        /* --- KUSURSUZ YAN PANELLER (CSS İLE KİLİTLENDİ) --- */
         .side-panel {
             position: absolute;
             top: 56px; 
@@ -199,13 +249,18 @@
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(16px);
             border-left: 1px solid rgba(255, 255, 255, 0.1);
-            transform: translateX(100%); 
+            transform: translateX(100%); /* Başlangıçta ekran dışı */
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
+            visibility: hidden; /* Tam gizlilik */
         }
-        .side-panel.open { transform: translateX(0); }
+        .side-panel.open {
+            transform: translateX(0); /* Ekrana kusursuz girer */
+            visibility: visible;
+        }
 
+        /* --- YÜZEN KONTROL PANELİ --- */
         #floating-controls {
             position: absolute;
             bottom: 24px;
@@ -221,8 +276,9 @@
             gap: 12px;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         }
+
         @media (max-width: 768px) {
-            #floating-controls { width: 90%; justify-content: space-between; bottom: env(safe-area-inset-bottom, 20px); border-radius: 20px; padding: 10px; }
+            #floating-controls { width: 90%; justify-content: space-between; bottom: env(safe-area-inset-bottom, 16px); border-radius: 20px; padding: 10px; gap: 6px; }
         }
 
         .btn-active { @apply bg-gray-700 hover:bg-gray-600 text-white; }
@@ -337,20 +393,20 @@
             </div>
         </header>
 
-        <!-- VİDEO ALANI -->
+        <!-- VİDEO ALANI (Varsayılan olarak Konuşmacı - mode-speaker) -->
         <main id="video-area" class="mode-speaker">
             <div id="stage-wrapper"></div>
             <div id="gallery-wrapper"></div>
         </main>
 
-        <!-- YAN PANELLER -->
+        <!-- YAN PANELLER (Sıfır Çakışma, Sadece CSS Sınıfı) -->
         <div id="participants-sidebar" class="side-panel w-64 p-4 shadow-2xl">
             <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2 shrink-0">
                 <h3 class="font-bold text-sm">Katılımcılar</h3>
                 <button onclick="toggleParticipants()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
             
-            <!-- BEKLEYENLER LİSTESİ (Sadece Hoca) -->
+            <!-- BEKLEYENLER LİSTESİ -->
             <div id="waiting-list-section" class="hidden mb-4 border-b border-white/10 pb-4 shrink-0">
                 <h4 class="text-xs font-bold text-yellow-400 mb-3 uppercase tracking-wider flex items-center justify-between">
                     <span>Bekleyenler</span>
@@ -393,7 +449,7 @@
                 <button onclick="els.utilsModal.classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
                 <h3 class="text-lg font-bold mb-5 flex items-center gap-2 border-b border-white/10 pb-3"><i class="fas fa-toolbox text-purple-400"></i> Yönetici Araçları</h3>
 
-                <!-- Güvenlik Ayarları (Bekleme Odası ve Şifre) -->
+                <!-- Güvenlik Ayarları -->
                 <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-5">
                     <h4 class="text-xs text-gray-400 font-bold mb-3 uppercase flex items-center gap-1"><i class="fas fa-shield-alt text-green-500"></i> Güvenlik</h4>
                     
@@ -468,7 +524,6 @@
             setTimeout(() => { ripple.remove(); }, 500);
         });
 
-        // CONFIG
         let config = {
             appTitle: "MATOTA Online Eğitim",
             teacherName: "Mustafa Kemal",
@@ -505,7 +560,7 @@
             toolTimerPaused: false,
             toolTimerCalls: [],
 
-            layoutMode: 'speaker', 
+            layoutMode: 'speaker', // Varsayılan Konuşmacı Modu
             mainSpeakerId: null,
             
             isWaitingRoomEnabled: true,
@@ -531,9 +586,6 @@
             personalizedWelcome: document.getElementById('personalized-welcome'),
             appTitle: document.getElementById('app-title-display'),
             welcomeMsg: document.getElementById('welcome-msg-display'),
-            btnGroup: document.getElementById('button-group'),
-            btnCreate: document.getElementById('create-btn'),
-            btnJoin: document.getElementById('join-btn'),
             
             btnMic: document.getElementById('toggle-mic'),
             btnCam: document.getElementById('toggle-cam'),
@@ -595,7 +647,6 @@
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-
                 const now = audioCtx.currentTime;
                 
                 if (type === 'join') {
@@ -605,8 +656,7 @@
                     gain.gain.setValueAtTime(0, now);
                     gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
                     gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                    osc.start(now);
-                    osc.stop(now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
                 } else if (type === 'leave') {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(660, now);
@@ -614,16 +664,14 @@
                     gain.gain.setValueAtTime(0, now);
                     gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
                     gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                    osc.start(now);
-                    osc.stop(now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
                 } else if (type === 'chat') {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(880, now);
                     gain.gain.setValueAtTime(0, now);
                     gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
                     gain.gain.linearRampToValueAtTime(0, now + 0.15);
-                    osc.start(now);
-                    osc.stop(now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
                 }
             } catch (e) {}
         }
@@ -675,16 +723,18 @@
                 `;
             }
 
+            const btnCreate = document.getElementById('create-btn');
+            const btnJoin = document.getElementById('join-btn');
+            const btnGroup = document.getElementById('button-group');
+
             if (roleParam === 'teacher') {
-                els.btnJoin.style.display = 'none'; 
-                els.btnGroup.classList.remove('grid-cols-2');
-                els.btnGroup.classList.add('grid-cols-1');
+                if(btnJoin) btnJoin.style.display = 'none'; 
+                if(btnGroup) { btnGroup.classList.remove('grid-cols-2'); btnGroup.classList.add('grid-cols-1'); }
                 if (!(roomParam && nameParam)) els.roomHint.innerHTML = '<span class="text-blue-400 flex items-center gap-1"><i class="fas fa-chalkboard-teacher"></i> Öğretmen yetkisi algılandı.</span>';
                 if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
             } else if (roleParam === 'student') {
-                els.btnCreate.style.display = 'none'; 
-                els.btnGroup.classList.remove('grid-cols-2');
-                els.btnGroup.classList.add('grid-cols-1');
+                if(btnCreate) btnCreate.style.display = 'none'; 
+                if(btnGroup) { btnGroup.classList.remove('grid-cols-2'); btnGroup.classList.add('grid-cols-1'); }
                 if (!(roomParam && nameParam)) els.roomHint.innerHTML = '<span class="text-green-400 flex items-center gap-1"><i class="fas fa-user-graduate"></i> Öğrenci olarak katılım sağlanıyor.</span>';
                 if(!nameParam) setTimeout(() => els.nickInput.focus(), 500);
             }
@@ -737,7 +787,6 @@
             }, 1000);
         }
 
-        // HOCA GÜVENLİK AYARLARI
         els.toggleWaitingRoom.addEventListener('change', (e) => {
             state.isWaitingRoomEnabled = e.target.checked;
         });
@@ -747,14 +796,16 @@
             alert(state.meetingPassword ? 'Toplantı şifresi güncellendi.' : 'Toplantı şifresi kaldırıldı.');
         });
 
+        // --- GÜVENLİ VE HATASIZ START FONKSİYONU ---
         async function startSession(asTeacher) {
             initAudio(); 
             
-            const btn = asTeacher ? els.btnCreate : els.btnJoin;
-            const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
-            const originalText = btnText.innerHTML;
-            btn.classList.add('btn-loading');
-            btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
+            const btn = asTeacher ? document.getElementById('create-btn') : document.getElementById('join-btn');
+            const btnText = asTeacher ? document.getElementById('btn-create-text') : document.getElementById('btn-join-text');
+            const originalText = btnText ? btnText.innerHTML : (asTeacher ? "Kur (Hoca)" : "Katıl (Öğrenci)");
+            
+            if(btn) btn.classList.add('btn-loading');
+            if(btnText) btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
 
             let roomVal = els.roomInput.value.toLowerCase().replace(/[^a-z0-9]/g, '');
             const nickVal = els.nickInput.value.trim() || (asTeacher ? config.teacherName : "Misafir");
@@ -782,7 +833,6 @@
             updateParticipantsList('me', nickVal, asTeacher);
             addVideo(state.localStream, `${nickVal} (Sen)`, true, 'me', false);
 
-            // DÜZELTME: Kilitlenme sorununu çözen, sadece alfanümerik filtreli özel ID
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher 
                 ? `${prefix}_${roomVal}_HOST` 
@@ -864,21 +914,20 @@
             });
             
             state.peer.on('error', (err) => {
-                // DÜZELTME: Öğretmen yanlışlıkla sayfayı yenilediğinde sistemden atılmasını engelleyen yapı.
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) {
-                        alert("Bu ders odası arka planda aktif görünüyor (Eski oturumunuz tam kapanmamış olabilir). Sistem temizleniyor, lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın.");
-                        resetUI();
+                        alert("Bu ders odası arka planda aktif görünüyor (Eski oturumunuz tam kapanmamış olabilir). Lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın.");
+                        resetUI(btn, btnText, originalText);
                     } else {
                         alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin.");
-                        resetUI();
+                        resetUI(btn, btnText, originalText);
                     }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) {
-                        alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Lütfen öğretmenin girmesini bekleyin.");
+                        alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz.");
                         window.location.href = "https://www.matota.online";
                     } else {
-                        resetUI();
+                        resetUI(btn, btnText, originalText);
                     }
                 }
             });
@@ -939,15 +988,14 @@
         });
 
         function resetButton(btn, txtEl, originalTxt) {
-            btn.classList.remove('btn-loading');
-            txtEl.innerHTML = originalTxt;
+            if(btn) btn.classList.remove('btn-loading');
+            if(txtEl) txtEl.innerHTML = originalTxt;
         }
 
-        function resetUI() {
+        function resetUI(btn, txtEl, originalTxt) {
             els.lobby.classList.remove('hidden');
             els.room.classList.add('hidden');
-            resetButton(els.btnCreate, els.btnCreateText, '<i class="fas fa-chalkboard-teacher"></i> Kur (Hoca)');
-            resetButton(els.btnJoin, els.btnJoinText, '<i class="fas fa-user-graduate"></i> Katıl (Öğrenci)');
+            resetButton(btn, txtEl, originalTxt);
             if(state.peer) state.peer.destroy();
             if(state.timerInterval) clearInterval(state.timerInterval);
             els.timer.classList.add('hidden');
@@ -1021,29 +1069,26 @@
             renderWaitingList();
         };
 
+        // --- KUSURSUZ YAN PANEL (JS VE CSS ÇAKIŞMASIZ) ---
         window.toggleChat = () => {
-            state.isChatOpen = !state.isChatOpen;
-            if(state.isChatOpen) {
-                els.chatSidebar.style.transform = 'translateX(0)';
+            const isChatOpen = els.chatSidebar.classList.contains('open');
+            if(!isChatOpen) {
+                els.chatSidebar.classList.add('open');
                 els.chatNotif.classList.add('hidden');
                 setTimeout(() => els.chatInput.focus(), 300);
-                
-                state.isParticipantsOpen = false;
-                els.sidebar.style.transform = 'translateX(100%)';
+                els.sidebar.classList.remove('open');
             } else {
-                els.chatSidebar.style.transform = 'translateX(100%)';
+                els.chatSidebar.classList.remove('open');
             }
         };
 
         window.toggleParticipants = () => {
-            state.isParticipantsOpen = !state.isParticipantsOpen;
-            if(state.isParticipantsOpen) {
-                els.sidebar.style.transform = 'translateX(0)';
-                
-                state.isChatOpen = false;
-                els.chatSidebar.style.transform = 'translateX(100%)';
+            const isPartOpen = els.sidebar.classList.contains('open');
+            if(!isPartOpen) {
+                els.sidebar.classList.add('open');
+                els.chatSidebar.classList.remove('open');
             } else {
-                els.sidebar.style.transform = 'translateX(100%)';
+                els.sidebar.classList.remove('open');
             }
         };
 
@@ -1096,13 +1141,14 @@
             els.chatMessages.appendChild(div);
             els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
             
-            if(!state.isChatOpen && !isMe) {
+            if(!els.chatSidebar.classList.contains('open') && !isMe) {
                 els.chatNotif.classList.remove('hidden');
                 playSound('chat');
             }
         }
 
-        // --- AKILLI ÖNCELİK ALGORİTMASI ---
+        // --- AKILLI ÖNCELİK ALGORİTMASI (KUSURSUZ) ---
+        // Sıralama: 1.Ekran Paylaşımı > 2.Öğretmen > 3.Öğrenciler > 4.Zamanlayıcı
         function autoSelectMainSpeaker() {
             const screenShare = document.querySelector('.is-screen-share');
             if (screenShare) return screenShare.id;
@@ -1121,9 +1167,11 @@
             }
             if (teacherCard) return teacherCard.id;
             
-            const firstVid = document.querySelector('.video-card:not(.is-timer)');
+            // 3. Öğrenciler (Öğretmen, ekran paylaşımı ve zamanlayıcı HARİÇ)
+            const firstVid = document.querySelector('.video-card:not(.is-timer):not(#vid-me):not([id$="HOST"])');
             if (firstVid) return firstVid.id;
 
+            // 4. Zamanlayıcı (En son çare)
             const timerCard = document.querySelector('.is-timer');
             if (timerCard) return timerCard.id;
             
@@ -1219,6 +1267,7 @@
             
             els.galleryWrapper.appendChild(div);
             
+            // HER GİRİŞTE AKILLI ALGORTİMA ÇALIŞIR
             if (isScreenShare) {
                 setMainSpeaker(cardId);
             } else if (!state.mainSpeakerId || state.layoutMode === 'grid') {
@@ -1483,8 +1532,11 @@
             broadcastData({ type: 'cam-status', enabled: state.isCamOn });
         }
 
-        els.btnCreate.addEventListener('click', () => { initAudio(); startSession(true); });
-        els.btnJoin.addEventListener('click', () => { initAudio(); startSession(false); });
+        const btnCreate = document.getElementById('create-btn');
+        const btnJoin = document.getElementById('join-btn');
+        if(btnCreate) btnCreate.addEventListener('click', () => { startSession(true); });
+        if(btnJoin) btnJoin.addEventListener('click', () => { startSession(false); });
+        
         els.btnMic.addEventListener('click', toggleAudio);
         els.prevMic.addEventListener('click', toggleAudio);
         els.btnCam.addEventListener('click', toggleVideo);
