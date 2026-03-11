@@ -72,7 +72,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* --- KUSURSUZ YERLEŞİM MİMARİSİ (HİÇBİR ZAMAN SÜNMEZ) --- */
+        /* --- KUSURSUZ YERLEŞİM MİMARİSİ --- */
         #video-area {
             flex: 1;
             width: 100%;
@@ -296,14 +296,14 @@
         </div>
     </div>
 
-    <!-- BEKLEME ODASI OVERLAY (Öğrenci İçin) -->
+    <!-- BEKLEME ODASI OVERLAY -->
     <div id="waiting-room-overlay" class="hidden fixed inset-0 z-[120] bg-[#0f172a]/95 backdrop-blur-xl flex-col items-center justify-center">
         <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
         <h2 class="text-2xl font-bold text-white mb-2 tracking-wide">Bekleme Odası</h2>
         <p class="text-gray-400 text-sm text-center max-w-md px-4">Öğretmeninizin sizi derse alması bekleniyor. Lütfen sayfadan ayrılmayın.</p>
     </div>
 
-    <!-- ŞİFRE İSTEME MODALI (Öğrenci İçin) -->
+    <!-- ŞİFRE İSTEME MODALI -->
     <div id="password-modal" class="hidden fixed inset-0 z-[130] bg-black/80 backdrop-blur-md flex-col items-center justify-center p-4">
         <div class="bg-gray-800 border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
@@ -559,8 +559,7 @@
             
             isWaitingRoomEnabled: true,
             meetingPassword: '',
-            waitingUsers: {},
-            waitingChimeInterval: null // YENİ: Bekleme odası zil döngüsü
+            waitingUsers: {} 
         };
 
         const els = {
@@ -681,15 +680,6 @@
                     gain.gain.linearRampToValueAtTime(0, now + 0.15);
                     osc.start(now);
                     osc.stop(now + 0.15);
-                } else if (type === 'waiting') {
-                    // YENİ: Bekleme odası zili (Daha ince ve çok daha hafif bir ses)
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(1046.50, now); // İnce ve kibar bir ton
-                    gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(0.03, now + 0.05); // Sesi rahatsız etmeyecek seviyede (0.03) tutuyoruz
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                    osc.start(now);
-                    osc.stop(now + 0.5);
                 }
             } catch (e) {}
         }
@@ -758,16 +748,86 @@
             if(els.lobby) els.lobby.classList.remove('hidden');
         }
 
+        // --- GÜÇLENDİRİLMİŞ (AKILLI) KAMERA VE MİKROFON İZNİ MİMARİSİ ---
         async function getMediaStream() {
+            let finalStream = new MediaStream();
+            state.isCamOn = false;
+            state.isMicOn = false;
+
             try {
+                // 1. Önce her ikisini tek paket olarak istemeyi dene (En güvenilir yöntem)
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                state.localStream = stream;
-                if(els.localPreview) els.localPreview.srcObject = stream;
-                if(els.localPreview) els.localPreview.muted = true;
-                updateButtonUI(els.btnMic, true, 'fa-microphone', 'fa-microphone-slash');
-                updateButtonUI(els.btnCam, true, 'fa-video', 'fa-video-slash');
-                return true;
-            } catch (err) { return false; }
+                stream.getTracks().forEach(t => finalStream.addTrack(t));
+                state.isCamOn = true;
+                state.isMicOn = true;
+            } catch (err) {
+                console.warn("Kamera ve mikrofon tek pakette alınamadı, ayrı ayrı deneniyor...", err);
+                
+                // 2. Sadece Kamerayı Kurtarmaya Çalış
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    try {
+                        const vidStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        vidStream.getVideoTracks().forEach(t => finalStream.addTrack(t));
+                        state.isCamOn = true;
+                    } catch(vidErr) { console.warn("Gerçek kamera bulunamadı veya reddedildi."); }
+
+                    // 3. Sadece Mikrofonu Kurtarmaya Çalış
+                    try {
+                        const audStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        audStream.getAudioTracks().forEach(t => finalStream.addTrack(t));
+                        state.isMicOn = true;
+                    } catch(audErr) { console.warn("Gerçek mikrofon bulunamadı veya reddedildi."); }
+                }
+            }
+
+            // 4. EĞER GERÇEK KAMERA YOKSA, SAHTE (SİYAH) EKRAN YARAT
+            if (!state.isCamOn) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 640; canvas.height = 360;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#111827';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                const dummyVid = canvas.captureStream(15).getVideoTracks()[0];
+                dummyVid.enabled = false; 
+                finalStream.addTrack(dummyVid);
+            }
+
+            // 5. EĞER GERÇEK MİKROFON YOKSA, SAHTE (SESSİZ) SES MOTORU YARAT
+            if (!state.isMicOn) {
+                try {
+                    const AudioContextFallback = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextFallback) {
+                        const ctxFallback = new AudioContextFallback();
+                        const dest = ctxFallback.createMediaStreamDestination();
+                        const dummyAud = dest.stream.getAudioTracks()[0];
+                        dummyAud.enabled = false;
+                        finalStream.addTrack(dummyAud);
+                    }
+                } catch(e) { console.warn("Sahte ses motoru oluşturulamadı."); }
+            }
+
+            state.localStream = finalStream;
+            
+            if(els.localPreview) {
+                els.localPreview.srcObject = finalStream;
+                els.localPreview.muted = true;
+                // Tarayıcı engeline karşı korumalı başlatma
+                els.localPreview.onloadedmetadata = () => {
+                    els.localPreview.play().catch(e => console.warn("Önizleme başlatılamadı", e));
+                };
+            }
+            
+            updateButtonUI(els.btnMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash');
+            updateButtonUI(els.btnCam, state.isCamOn, 'fa-video', 'fa-video-slash');
+            if(els.prevMic) updateButtonUI(els.prevMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash');
+            if(els.prevCam) updateButtonUI(els.prevCam, state.isCamOn, 'fa-video', 'fa-video-slash');
+
+            if(!state.isCamOn || !state.isMicOn) {
+                console.warn("Sistem sanal medya elemanlarıyla başlatıldı.");
+            }
+
+            return true;
         }
 
         function updateButtonUI(btn, isActive, iconOn, iconOff) {
@@ -827,7 +887,7 @@
             if (!roomVal) { alert("Oda kodu geçersiz."); resetButton(btn, btnText, originalText); return; }
             if (!state.localStream) {
                 const hasPermission = await getMediaStream();
-                if (!hasPermission) { alert("Kamera izni gerekli."); resetButton(btn, btnText, originalText); return; }
+                if (!hasPermission) { alert("Sistem medya donanımı başlatamadı."); resetButton(btn, btnText, originalText); return; }
             }
 
             state.roomName = roomVal;
@@ -846,10 +906,6 @@
 
             updateParticipantsList('me', nickVal, asTeacher);
             addVideo(state.localStream, `${nickVal} (Sen)`, true, 'me', false);
-
-            // YENİ: Lobide seçilen başlangıç durumlarını (Kamera/Mikrofon) ilk açılışta anında uygula!
-            togglePeerVideoPlaceholder('me', state.isCamOn);
-            togglePeerMicIndicator('me', state.isMicOn);
 
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher 
@@ -936,7 +992,7 @@
             state.peer.on('error', (err) => {
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) {
-                        alert("Bu ders odası arka planda aktif görünüyor (Eski oturumunuz tam kapanmamış olabilir). Lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın.");
+                        alert("Bu ders odası arka planda aktif görünüyor. Lütfen 10 saniye bekleyip tekrar basın.");
                         resetUI(btn, btnText, originalText);
                     } else {
                         alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin.");
@@ -944,7 +1000,7 @@
                     }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) {
-                        alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz.");
+                        alert("Ders henüz başlatılmadı veya öğretmen ayrıldı. Ana sayfaya yönlendiriliyorsunuz.");
                         window.location.href = "https://www.matota.online";
                     } else {
                         resetUI(btn, btnText, originalText);
@@ -1086,21 +1142,6 @@
                     els.waitingList.appendChild(div);
                 });
             }
-            
-            // YENİ: Bekleyen varsa zili 5 saniyede bir çal, yoksa zili durdur
-            if (keys.length > 0) {
-                if (!state.waitingChimeInterval) {
-                    playSound('waiting'); // İlk anda hemen çal
-                    state.waitingChimeInterval = setInterval(() => {
-                        playSound('waiting');
-                    }, 5000); // 5 saniyede bir tekrarla
-                }
-            } else {
-                if (state.waitingChimeInterval) {
-                    clearInterval(state.waitingChimeInterval);
-                    state.waitingChimeInterval = null;
-                }
-            }
         }
 
         window.admitUser = (peerId) => {
@@ -1109,6 +1150,13 @@
                 state.dataConnections[peerId] = user.conn;
                 user.conn.send({ type: 'accepted', teacherName: state.nickname });
                 setupDataListener(user.conn);
+                
+                setTimeout(() => {
+                    if (user.conn.open) {
+                        user.conn.send({ type: 'cam-status', enabled: state.isCamOn });
+                        user.conn.send({ type: 'mic-status', enabled: state.isMicOn });
+                    }
+                }, 1000);
             }
             delete state.waitingUsers[peerId];
             renderWaitingList();
@@ -1123,7 +1171,6 @@
             renderWaitingList();
         };
 
-        // --- KUSURSUZ YAN PANEL (SADECE FONKSİYONLARLA KONTROL) ---
         const openChatPanel = () => {
             if(els.chatSidebar) els.chatSidebar.classList.add('open');
             if(els.chatNotif) els.chatNotif.classList.add('hidden');
@@ -1138,9 +1185,8 @@
         };
         
         window.toggleChat = () => state.isChatOpen ? closeChatPanel() : openChatPanel();
-        if(els.btnToggleChat) els.btnToggleLayout.addEventListener('click', window.toggleChat); // Güvenlik yedeği
+        if(els.btnToggleChat) els.btnToggleChat.addEventListener('click', window.toggleChat);
         if(els.btnCloseChat) els.btnCloseChat.addEventListener('click', closeChatPanel);
-
 
         const openPartPanel = () => {
             if(els.sidebar) els.sidebar.classList.add('open');
@@ -1154,7 +1200,7 @@
         };
 
         window.toggleParticipants = () => state.isParticipantsOpen ? closePartPanel() : openPartPanel();
-        if(els.btnToggleParticipants) els.btnToggleParticipants.addEventListener('click', window.toggleParticipants); // Güvenlik yedeği
+        if(els.btnToggleParticipants) els.btnToggleParticipants.addEventListener('click', window.toggleParticipants);
         if(els.btnCloseParticipants) els.btnCloseParticipants.addEventListener('click', closePartPanel);
 
         if(els.btnUtils) els.btnUtils.addEventListener('click', () => {
@@ -1163,7 +1209,6 @@
         if(els.btnCloseUtils) els.btnCloseUtils.addEventListener('click', () => {
             if(els.utilsModal) els.utilsModal.classList.add('hidden');
         });
-
 
         function sendChat() {
             if(!els.chatInput) return;
@@ -1223,7 +1268,6 @@
             }
         }
 
-        // --- AKILLI ÖNCELİK ALGORİTMASI ---
         function autoSelectMainSpeaker() {
             const screenShare = document.querySelector('.is-screen-share');
             if (screenShare) return screenShare.id;
@@ -1327,10 +1371,13 @@
             if (isMuted) video.muted = true;
             if (id === 'me' && !isScreenShare) video.classList.add('mirror-mode');
             
+            video.onloadedmetadata = () => {
+                video.play().catch(e => console.warn("Video otomatik oynatılamadı", e));
+            };
+            
             const tag = document.createElement('div');
             tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
             
-            // YENİ: Mikrofon Kapalı İndikatörü
             tag.innerHTML = `
                 <i class="fas fa-${isScreenShare ? 'desktop' : (id.includes('timer') ? 'hourglass-half' : 'user')} text-[10px] ${id.includes('timer') ? 'text-yellow-400' : 'text-blue-400'}"></i> 
                 <span class="max-w-[100px] truncate">${label}</span>
@@ -1365,12 +1412,6 @@
 
             if (id !== 'me' && !isScreenShare && !id.includes('timer')) {
                 playSound('join');
-                
-                // Yeni katılan kişiye kendi güncel mikrofon ve kamera durumumuzu bildiriyoruz
-                setTimeout(() => {
-                    broadcastData({ type: 'cam-status', enabled: state.isCamOn });
-                    broadcastData({ type: 'mic-status', enabled: state.isMicOn });
-                }, 1000);
             }
         }
 
@@ -1555,7 +1596,7 @@
             }
         }
 
-        // YENİ: Mikforon İndikatörü Kontrol Fonksiyonu
+        // Mikforon İndikatörü Kontrol Fonksiyonu
         function togglePeerMicIndicator(peerId, isEnabled) {
             const container = document.getElementById(`vid-${peerId}`);
             if (container) {
@@ -1622,24 +1663,31 @@
 
         function toggleAudio() {
             if (!state.localStream) return;
-            const track = state.localStream.getAudioTracks()[0];
-            track.enabled = !track.enabled;
-            state.isMicOn = track.enabled;
+            const tracks = state.localStream.getAudioTracks();
+            if (tracks.length > 0) {
+                tracks[0].enabled = !tracks[0].enabled;
+                state.isMicOn = tracks[0].enabled;
+            } else {
+                state.isMicOn = false; // İzinsiz veya yoksa false
+            }
             updateButtonUI(els.btnMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash');
-            updateButtonUI(els.prevMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash');
+            if(els.prevMic) updateButtonUI(els.prevMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash');
             
-            // Kendi mikrofon ikonumuzu güncelle ve diğerlerine bildir
             togglePeerMicIndicator('me', state.isMicOn);
             broadcastData({ type: 'mic-status', enabled: state.isMicOn });
         }
 
         function toggleVideo() {
             if (!state.localStream) return;
-            const track = state.localStream.getVideoTracks()[0];
-            track.enabled = !track.enabled;
-            state.isCamOn = track.enabled;
+            const tracks = state.localStream.getVideoTracks();
+            if (tracks.length > 0) {
+                tracks[0].enabled = !tracks[0].enabled;
+                state.isCamOn = tracks[0].enabled;
+            } else {
+                state.isCamOn = false; // İzinsiz veya yoksa false
+            }
             updateButtonUI(els.btnCam, state.isCamOn, 'fa-video', 'fa-video-slash');
-            updateButtonUI(els.prevCam, state.isCamOn, 'fa-video', 'fa-video-slash');
+            if(els.prevCam) updateButtonUI(els.prevCam, state.isCamOn, 'fa-video', 'fa-video-slash');
             
             togglePeerVideoPlaceholder('me', state.isCamOn);
             broadcastData({ type: 'cam-status', enabled: state.isCamOn });
