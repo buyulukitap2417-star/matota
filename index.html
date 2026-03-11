@@ -844,6 +844,7 @@
                             conn.send({ type: 'password-required' });
                             return;
                         }
+
                         if (state.isWaitingRoomEnabled) {
                             state.waitingUsers[conn.peer] = { conn: conn, name: data.name };
                             renderWaitingList();
@@ -855,6 +856,7 @@
                         }
                     }
                 });
+                
                 conn.on('close', () => {
                     if(state.waitingUsers[conn.peer]) {
                         delete state.waitingUsers[conn.peer];
@@ -886,6 +888,7 @@
                 call.on('close', () => {
                     const removeId = isScreenShare ? `screen-${call.peer}` : (isTimer ? `timer-${call.peer}` : call.peer);
                     const fullCardId = `vid-${removeId}`;
+                    
                     document.getElementById(fullCardId)?.remove();
 
                     if (state.mainSpeakerId === fullCardId) {
@@ -893,6 +896,7 @@
                         if (!state.mainSpeakerId) state.layoutMode = 'grid';
                     }
                     applyLayout();
+                    
                     if (!isScreenShare && !isTimer) removeParticipant(call.peer);
                 });
             });
@@ -900,15 +904,15 @@
             state.peer.on('error', (err) => {
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) {
-                        alert("Oda kimliğinde çakışma var. Lütfen 10 saniye bekleyip tekrar basın.");
+                        alert("Bu ders odası arka planda aktif görünüyor (Eski oturumunuz tam kapanmamış olabilir). Lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın.");
                         resetUI(btn, btnText, originalText);
                     } else {
-                        alert("Lütfen sayfayı yenileyin.");
+                        alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin.");
                         resetUI(btn, btnText, originalText);
                     }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) {
-                        alert("Öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz.");
+                        alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz.");
                         window.location.href = "https://www.matota.online";
                     } else {
                         resetUI(btn, btnText, originalText);
@@ -1440,76 +1444,6 @@
             }
         });
 
-        function drawTimerOnCanvas(ctx, canvas, width, height) {
-            ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, width, height); ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            if (state.toolTimerSeconds > 0) {
-                const m = Math.floor(state.toolTimerSeconds / 60).toString().padStart(2, '0');
-                const s = (state.toolTimerSeconds % 60).toString().padStart(2, '0');
-                ctx.font = 'bold 100px "Plus Jakarta Sans", sans-serif'; ctx.fillText(`${m}:${s}`, width / 2, height / 2 - 10);
-                if (state.toolTimerPaused) {
-                    ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = '#ef4444'; ctx.fillText('DURAKLATILDI', width / 2, height / 2 + 70);
-                } else {
-                    ctx.font = '24px sans-serif'; ctx.fillStyle = '#94a3b8'; ctx.fillText('KALAN SÜRE', width / 2, height / 2 + 70);
-                }
-            } else {
-                ctx.font = 'bold 60px sans-serif'; ctx.fillStyle = '#22c55e'; ctx.fillText('SÜRE BİTTİ', width / 2, height / 2);
-            }
-        }
-
-        on(els.btnTStart, 'click', () => {
-            const minutes = parseInt(els.timerMinInput.value) || 5;
-            if (state.toolTimerStream && !state.toolTimerPaused) return; 
-            if (state.toolTimerPaused) {
-                state.toolTimerPaused = false; els.btnTPause.innerText = 'Beklet'; els.btnTPause.classList.replace('bg-blue-600', 'bg-yellow-600'); return;
-            }
-            state.toolTimerSeconds = minutes * 60; state.toolTimerPaused = false;
-            const canvas = els.timerCanvas; const ctx = canvas.getContext('2d');
-            state.toolTimerStream = canvas.captureStream(15); drawTimerOnCanvas(ctx, canvas, canvas.width, canvas.height);
-            state.toolTimerInterval = setInterval(() => {
-                if (!state.toolTimerPaused && state.toolTimerSeconds > 0) state.toolTimerSeconds--;
-                drawTimerOnCanvas(ctx, canvas, canvas.width, canvas.height);
-            }, 1000);
-            
-            addVideo(state.toolTimerStream, "Zamanlayıcı", true, 'tool-timer', false);
-            state.participants.forEach(p => {
-                if (p.id !== 'me') {
-                    const call = state.peer.call(p.id, state.toolTimerStream, { metadata: { type: 'timer' } });
-                    state.toolTimerCalls.push(call);
-                }
-            });
-            els.btnTStart.classList.add('hidden');
-            if(els.btnTPause) els.btnTPause.classList.remove('hidden');
-            if(els.btnTStop) els.btnTStop.classList.remove('hidden');
-            if(els.timerMinInput) els.timerMinInput.disabled = true;
-        });
-
-        on(els.btnTPause, 'click', () => {
-            state.toolTimerPaused = true;
-            drawTimerOnCanvas(els.timerCanvas.getContext('2d'), els.timerCanvas, els.timerCanvas.width, els.timerCanvas.height);
-            els.btnTPause.innerText = 'Devam Et'; els.btnTPause.classList.replace('bg-yellow-600', 'bg-blue-600');
-        });
-
-        on(els.btnTStop, 'click', () => {
-            if (state.toolTimerInterval) clearInterval(state.toolTimerInterval);
-            if (state.toolTimerStream) state.toolTimerStream.getTracks().forEach(t => t.stop());
-            state.toolTimerStream = null; state.toolTimerCalls.forEach(c => c.close()); state.toolTimerCalls = [];
-            const timerId = 'vid-tool-timer'; document.getElementById(timerId)?.remove();
-            
-            if(state.mainSpeakerId === timerId) {
-                state.mainSpeakerId = autoSelectMainSpeaker();
-                if (!state.mainSpeakerId) state.layoutMode = 'grid';
-            }
-            applyLayout();
-            
-            if(els.btnTStart) els.btnTStart.classList.remove('hidden');
-            if(els.btnTPause) els.btnTPause.classList.add('hidden');
-            if(els.btnTStop) els.btnTStop.classList.add('hidden');
-            if(els.btnTPause) els.btnTPause.innerText = 'Beklet'; 
-            if(els.btnTPause) els.btnTPause.classList.replace('bg-blue-600', 'bg-yellow-600');
-            if(els.timerMinInput) els.timerMinInput.disabled = false;
-        });
-
         function togglePeerVideoPlaceholder(peerId, isEnabled) {
             const container = document.getElementById(`vid-${peerId}`);
             if (container) {
@@ -1529,6 +1463,59 @@
                     if (isEnabled) micIcon.classList.add('hidden'); else micIcon.classList.remove('hidden');
                 }
             }
+        }
+
+        function updateParticipantsList(id, name, isTeacherPeer) {
+            if (state.participants.some(p => p.id === id)) return;
+            state.participants.push({ id, name, isTeacherPeer });
+            renderParticipants();
+        }
+
+        function removeParticipant(id) {
+            const exists = state.participants.find(p => p.id === id);
+            if (exists) {
+                playSound('leave'); 
+                state.participants = state.participants.filter(p => p.id !== id);
+                renderParticipants();
+            }
+        }
+
+        function renderParticipants() {
+            if(els.pCount) els.pCount.innerText = state.participants.length;
+            if(els.pList) els.pList.innerHTML = '';
+            state.participants.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between bg-white/5 p-2 rounded-lg text-xs';
+                const left = document.createElement('div');
+                left.className = 'flex items-center gap-2';
+                left.innerHTML = `<i class="fas fa-user-circle text-gray-400"></i> <span>${p.name} ${p.id === 'me' ? '(Sen)' : ''}</span>`;
+                item.appendChild(left);
+                if (state.isTeacher && p.id !== 'me') {
+                    const kickBtn = document.createElement('button');
+                    kickBtn.className = 'text-red-500 hover:text-red-400 p-1';
+                    kickBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    kickBtn.onclick = () => kickUser(p.id);
+                    item.appendChild(kickBtn);
+                }
+                if(els.pList) els.pList.appendChild(item);
+            });
+        }
+
+        function kickUser(peerId) {
+            if(!confirm("Kullanıcı atılsın mı?")) return;
+            const conn = state.dataConnections[peerId];
+            if (conn && conn.open) conn.send({ type: 'kick' });
+            if (state.activeCalls[peerId]) state.activeCalls[peerId].close();
+            
+            const pId = `vid-${peerId}`;
+            document.getElementById(pId)?.remove();
+            
+            if(state.mainSpeakerId === pId) {
+                state.mainSpeakerId = autoSelectMainSpeaker();
+                if(!state.mainSpeakerId) state.layoutMode = 'grid';
+            }
+            applyLayout();
+            removeParticipant(peerId);
         }
 
         function toggleAudio() {
