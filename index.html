@@ -438,7 +438,7 @@
                     <p class="text-[10px] text-gray-500 mt-2 text-center">Kayıt sırasında ayrılırsanız, video kaybolmamak için anında otomatik indirilir.</p>
                 </div>
 
-                <!-- YENİ: POMODORO VE MOLA YÖNETİMİ -->
+                <!-- POMODORO VE MOLA YÖNETİMİ -->
                 <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700 mb-5">
                     <h4 class="text-xs text-gray-400 font-bold mb-2 uppercase"><i class="fas fa-hourglass-half mr-1 text-yellow-500"></i> Pomodoro & Mola Yönetimi</h4>
                     <div class="flex gap-2 mb-3">
@@ -702,6 +702,7 @@
 
         on(els.roomInput, 'input', (e) => { e.target.value = e.target.value.toLowerCase().replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]/g, ''); });
 
+        // --- POMODORO VE DİNAMİK AĞ KONTROL MOTORU ---
         function startTimer() {
             if(state.pomodoroInterval) clearInterval(state.pomodoroInterval);
             state.pomodoroInterval = setInterval(() => {
@@ -745,22 +746,12 @@
             }, 1000);
         }
 
-        // Pomodoro Actions
-        on(els.btnPomoFocus, 'click', () => {
-            const mins = parseInt(els.pomoFocusInput.value) || 25;
-            startPomodoro('focus', mins, true);
-        });
-        on(els.btnPomoBreak, 'click', () => {
-            const mins = parseInt(els.pomoBreakInput.value) || 5;
-            startPomodoro('break', mins, true);
-        });
-        on(els.btnPomoStop, 'click', () => {
-            stopPomodoro(true);
-        });
+        on(els.btnPomoFocus, 'click', () => { const mins = parseInt(els.pomoFocusInput.value) || 25; startPomodoro('focus', mins, true); });
+        on(els.btnPomoBreak, 'click', () => { const mins = parseInt(els.pomoBreakInput.value) || 5; startPomodoro('break', mins, true); });
+        on(els.btnPomoStop, 'click', () => { stopPomodoro(true); });
 
         function startPomodoro(mode, duration, emit) {
-            state.pomodoroMode = mode;
-            state.pomodoroEndTime = Date.now() + (duration * 60000);
+            state.pomodoroMode = mode; state.pomodoroEndTime = Date.now() + (duration * 60000);
             
             if(els.btnPomoFocus) els.btnPomoFocus.classList.add('hidden');
             if(els.btnPomoBreak) els.btnPomoBreak.classList.add('hidden');
@@ -796,7 +787,6 @@
             }
         }
 
-        // --- YAPAY ZEKA DİKKAT TAKİP SİSTEMİ ---
         function initAttentionTracker() {
             if(state.isTeacher) return; 
             document.addEventListener("visibilitychange", () => {
@@ -868,7 +858,9 @@
             
             if(els.lobby) els.lobby.classList.add('hidden'); if(els.room) els.room.classList.remove('hidden');
             if(els.roomTitle) els.roomTitle.innerText = `MATOTA / ${roomVal}`;
-            if(els.localPreview) els.localPreview.pause();
+            
+            // Kamera çalmayı önlemek için güvenli durdurma
+            if(els.localPreview) { els.localPreview.pause(); els.localPreview.srcObject = null; }
 
             if (asTeacher) {
                 if(els.btnUtils) els.btnUtils.classList.remove('hidden');
@@ -886,7 +878,15 @@
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher ? `${prefix}_${roomVal}_HOST` : `${prefix}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
 
-            state.peer = new Peer(myId, { debug: 1 });
+            state.peer = new Peer(myId, { 
+                debug: 1,
+                config: {
+                    'iceServers': [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
 
             state.peer.on('open', (id) => {
                 if (asTeacher) { if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.classList.add('text-green-400'); } } 
@@ -928,16 +928,20 @@
             });
             
             state.peer.on('error', (err) => {
+                console.error("Peer Hatası:", err);
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) { alert("Bu ders odası arka planda aktif görünüyor. Lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın."); resetUI(btn, btnText, originalText); } 
                     else { alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) { alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz."); window.location.href = "https://www.matota.online"; } 
                     else { resetUI(btn, btnText, originalText); }
+                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'browser-incompatible') {
+                    alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya güvenlik duvarınızı kontrol edin.");
+                    resetUI(btn, btnText, originalText);
                 }
             });
 
-            setTimeout(() => { if (els.status && els.status.innerText === "Bağlantı Kuruluyor...") els.status.innerText = "Sunucu Bekleniyor..."; }, 5000);
+            setTimeout(() => { if (els.status && (els.status.innerText === "Bağlantı Kuruluyor..." || els.status.innerText === "Doğrulanıyor...")) els.status.innerText = "Sunucu Bekleniyor..."; }, 8000);
         }
 
         function connectToHostForAuth(hostId, password = null) {
@@ -1090,7 +1094,6 @@
 
         window.rejectUser = (peerId) => { const user = state.waitingUsers[peerId]; if (user && user.conn.open) user.conn.send({ type: 'kick' }); delete state.waitingUsers[peerId]; renderWaitingList(); };
 
-        // Yeni Tıklamalı Menü Sistemi
         window.toggleParticipantMenu = (peerId, event) => {
             event.stopPropagation();
             document.querySelectorAll('.dropdown-menu.show, .dropdown-menu.show-col').forEach(m => {
@@ -1305,7 +1308,6 @@
             if(id !== 'me') video.volume = state.globalVolume / 100;
         }
 
-        // --- ETKİLEŞİMLİ BEYAZ TAHTA (WHITEBOARD) SİSTEMİ ---
         function initWhiteboard() {
             if (!wbCtx || !els.wbCanvas) return;
             els.wbCanvas.width = 1920; els.wbCanvas.height = 1080;
