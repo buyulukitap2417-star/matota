@@ -663,7 +663,7 @@
             }
             state.localStream = stream;
             
-            // Lobi kamerasını serbest bırak (Kamera Çalma Hatasını engeller)
+            // KESİN ÇÖZÜM 1: Lobideki video tamamen bağımsız olacak ve çökmeyecek
             if(els.localPreview) { 
                 els.localPreview.srcObject = stream; 
                 els.localPreview.muted = true; 
@@ -683,7 +683,6 @@
 
         on(els.roomInput, 'input', (e) => { e.target.value = e.target.value.toLowerCase().replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]/g, ''); });
 
-        // --- POMODORO VE DİNAMİK AĞ KONTROL MOTORU ---
         function startTimer() {
             if(state.pomodoroInterval) clearInterval(state.pomodoroInterval);
             state.pomodoroInterval = setInterval(() => {
@@ -821,13 +820,6 @@
             if(els.lobby) els.lobby.classList.add('hidden'); if(els.room) els.room.classList.remove('hidden');
             if(els.roomTitle) els.roomTitle.innerText = `MATOTA / ${roomVal}`;
 
-            // KESİN ÇÖZÜM 1: Lobi kamerasını sahneden önce tamamen serbest bırakıyoruz ki "Kamera Çalma" hatası yaşanmasın.
-            if(els.localPreview) {
-                els.localPreview.pause();
-                els.localPreview.srcObject = null;
-                els.localPreview.load(); // Tarayıcıya donanımı serbest bıraktırıyoruz
-            }
-
             if (asTeacher) {
                 if(els.btnUtils) els.btnUtils.classList.remove('hidden'); startTimer();
             } else {
@@ -843,34 +835,17 @@
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher ? `${prefix}_${roomVal}_HOST` : `${prefix}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
 
-            // KESİN ÇÖZÜM 2: En güvenilir PeerJS bağlantısı için `secure: true` ve sağlam STUN sunucuları
-            try {
-                state.peer = new Peer(myId, { 
-                    debug: 1,
-                    secure: true,
-                    pingInterval: 5000,
-                    config: {
-                        'iceServers': [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:global.stun.twilio.com:3478' }
-                        ]
-                    }
-                });
-            } catch(e) {
-                alert("Sunucu motoru başlatılamadı. Lütfen sayfayı yenileyin.");
-                resetUI(btn, btnText, originalText);
-                return;
-            }
+            // KESİN ÇÖZÜM 2: En sade ve güvenilir PeerJS bağlantısı. (Sorun yaratan zorunlu STUN/SSL kodları silindi)
+            state.peer = new Peer(myId);
 
             // Güvenlik Duvarı/Askıda Kalma Kontrolcüsü (Watchdog)
             let connectWatchdog = setTimeout(() => {
                 if (els.status && (els.status.innerText === "Bağlantı Kuruluyor..." || els.status.innerText === "Doğrulanıyor..." || els.status.innerText === "Sunucuya Bağlanılıyor...")) {
-                    els.status.innerText = "Bağlantı Başarısız!"; 
-                    els.status.classList.replace('text-gray-400', 'text-red-500');
-                    alert("Sunucuya bağlanılamadı. Ağınız engelliyor olabilir veya eski oturumunuz sunucuda asılı kalmış olabilir. Lütfen sayfayı yenileyip tekrar deneyin.");
+                    els.status.innerText = "Bağlantı Başarısız!"; els.status.classList.replace('text-gray-400', 'text-red-500');
+                    alert("Ağınız veya güvenlik duvarınız (Adblock vb.) bağlantıyı engelliyor. Lütfen sayfayı yenileyin.");
                     resetUI(btn, btnText, originalText);
                 }
-            }, 10000);
+            }, 12000);
 
             state.peer.on('open', (id) => {
                 clearTimeout(connectWatchdog);
@@ -911,16 +886,20 @@
             });
             
             state.peer.on('error', (err) => {
-                console.error("Peer Hatası:", err);
+                // KESİN ÇÖZÜM 3: ÖĞRETMEN İÇİN OTOMATİK KURTARMA (Auto-Retry)
                 if(err.type === 'unavailable-id') {
-                    if (state.isTeacher) { alert("Bu ders odası arka planda aktif görünüyor. Lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın."); resetUI(btn, btnText, originalText); } 
-                    else { alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); }
+                    if (state.isTeacher) { 
+                        if(els.status) { els.status.innerText = "Önceki oturum temizleniyor. Lütfen bekleyin..."; els.status.classList.add('text-yellow-400'); }
+                        setTimeout(() => { if(state.peer) state.peer.destroy(); startSession(true); }, 5000);
+                        return; // Sistemi çökertme, kendi kendine tekrar denesin!
+                    } else { 
+                        alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); 
+                    }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) { alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz."); window.location.href = "https://www.matota.online"; } 
                     else { resetUI(btn, btnText, originalText); }
                 } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'browser-incompatible') {
-                    alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya güvenlik duvarınızı kontrol edin.");
-                    resetUI(btn, btnText, originalText);
+                    alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya güvenlik duvarınızı kontrol edin."); resetUI(btn, btnText, originalText);
                 }
             });
         }
@@ -1211,10 +1190,14 @@
             // Güvenli Play tetiklemesi
             setTimeout(() => { if(video.paused) video.play().catch(()=>{}); }, 200);
             
-            const tag = document.createElement('div'); tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
+            const tag = document.createElement('div');
+            tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
             tag.innerHTML = `<i class="fas fa-signal text-green-400 mr-1" id="signal-${id}"></i><i class="fas fa-${isScreenShare ? 'desktop' : 'user'} text-[10px] text-blue-400"></i> <span class="max-w-[100px] truncate ml-1">${label}</span><i class="fas fa-microphone-slash text-red-500 ml-1 hidden mic-off-indicator" title="Mikrofon Kapalı"></i>`;
             
-            div.addEventListener('dblclick', () => { if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) { state.mainSpeakerId = null; state.layoutMode = 'grid'; applyLayout(); } else { setMainSpeaker(cardId); } });
+            div.addEventListener('dblclick', () => {
+                if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) { state.mainSpeakerId = null; state.layoutMode = 'grid'; applyLayout(); } else { setMainSpeaker(cardId); }
+            });
+
             div.appendChild(video); if (!isScreenShare) div.appendChild(placeholder); div.appendChild(tag);
             if(els.galleryWrapper) els.galleryWrapper.appendChild(div);
             
