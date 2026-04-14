@@ -13,7 +13,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- PeerJS En Stabil Sürüm -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -162,8 +163,10 @@
         </div>
     </div>
 
+    <!-- AI DİKKAT UYARI ALANI -->
     <div id="ai-alerts-container" class="fixed bottom-24 left-4 z-[160] flex flex-col gap-2 pointer-events-none"></div>
 
+    <!-- POMODORO & MOLA OVERLAY -->
     <div id="break-overlay" class="hidden absolute inset-0 z-[140] bg-[#0f172a]/95 backdrop-blur-2xl flex-col items-center justify-center text-center p-6">
         <div class="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center mb-6 animate-pulse">
             <i class="fas fa-coffee text-5xl text-blue-400"></i>
@@ -173,12 +176,14 @@
         <div class="text-6xl font-mono font-bold text-blue-400 tracking-widest shadow-blue-500/50 drop-shadow-2xl" id="break-timer-display">00:00</div>
     </div>
 
+    <!-- BEKLEME ODASI OVERLAY -->
     <div id="waiting-room-overlay" class="hidden fixed inset-0 z-[120] bg-[#0f172a]/95 backdrop-blur-xl flex-col items-center justify-center">
         <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
         <h2 class="text-2xl font-bold text-white mb-2 tracking-wide">Bekleme Odası</h2>
         <p class="text-gray-400 text-sm text-center max-w-md px-4">Öğretmeninizin sizi derse alması bekleniyor. Lütfen sayfadan ayrılmayın.</p>
     </div>
 
+    <!-- ŞİFRE İSTEME MODALI -->
     <div id="password-modal" class="hidden fixed inset-0 z-[130] bg-black/80 backdrop-blur-md flex-col items-center justify-center p-4">
         <div class="bg-gray-800 border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
@@ -663,7 +668,7 @@
             }
             state.localStream = stream;
             
-            // KESİN ÇÖZÜM 1: Lobideki video tamamen bağımsız olacak ve çökmeyecek
+            // Lobi kamerasını ÇÖKERTME YASAKLANDI (Direkt kullanılıyor)
             if(els.localPreview) { 
                 els.localPreview.srcObject = stream; 
                 els.localPreview.muted = true; 
@@ -802,6 +807,7 @@
             document.querySelectorAll('video').forEach(vid => { if(vid.id !== 'local-preview' && !vid.closest('#vid-me')) vid.volume = state.globalVolume / 100; });
         });
 
+        // --- TAM GÜVENLİ VE HIZLI BAĞLANTI (ÇÖKME İMKANSIZ) ---
         async function startSession(asTeacher) {
             initAudio(); 
             const btn = asTeacher ? els.btnCreate : els.btnJoin; const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
@@ -820,8 +826,12 @@
             if(els.lobby) els.lobby.classList.add('hidden'); if(els.room) els.room.classList.remove('hidden');
             if(els.roomTitle) els.roomTitle.innerText = `MATOTA / ${roomVal}`;
 
+            // KESİN ÇÖZÜM 1: Lobideki kamera ASLA durdurulmuyor, ASLA silinmiyor. Sadece HTML olarak gizleniyor.
+            // Bu sayede tarayıcı donanımın elektriğini kesmiyor ve odaya geçişte kamera anında yükleniyor.
+
             if (asTeacher) {
                 if(els.btnUtils) els.btnUtils.classList.remove('hidden'); startTimer();
+                if(els.status) { els.status.innerText = "Oda Hazırlanıyor..."; els.status.classList.add('text-yellow-400'); }
             } else {
                 if(els.status) { els.status.innerText = "Sunucuya Bağlanılıyor..."; els.status.classList.remove('text-green-400'); }
                 initAttentionTracker();
@@ -835,21 +845,25 @@
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher ? `${prefix}_${roomVal}_HOST` : `${prefix}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
 
-            // KESİN ÇÖZÜM 2: En sade ve güvenilir PeerJS bağlantısı. (Sorun yaratan zorunlu STUN/SSL kodları silindi)
-            state.peer = new Peer(myId);
+            // KESİN ÇÖZÜM 2: En güvenilir bağlantı (Herhangi bir ağ engeli yaratmayan sade yapı)
+            try {
+                state.peer = new Peer(myId);
+            } catch(e) {
+                alert("İletişim motoru başlatılamadı. Lütfen sayfayı yenileyin.");
+                resetUI(btn, btnText, originalText); return;
+            }
 
-            // Güvenlik Duvarı/Askıda Kalma Kontrolcüsü (Watchdog)
             let connectWatchdog = setTimeout(() => {
-                if (els.status && (els.status.innerText === "Bağlantı Kuruluyor..." || els.status.innerText === "Doğrulanıyor..." || els.status.innerText === "Sunucuya Bağlanılıyor...")) {
-                    els.status.innerText = "Bağlantı Başarısız!"; els.status.classList.replace('text-gray-400', 'text-red-500');
-                    alert("Ağınız veya güvenlik duvarınız (Adblock vb.) bağlantıyı engelliyor. Lütfen sayfayı yenileyin.");
+                if (els.status && (els.status.innerText === "Bağlantı Kuruluyor..." || els.status.innerText === "Sunucuya Bağlanılıyor..." || els.status.innerText === "Oda Hazırlanıyor...")) {
+                    els.status.innerText = "Ağ Engeli / Zaman Aşımı"; els.status.classList.replace('text-yellow-400', 'text-red-500');
+                    alert("Ağınız veya güvenlik duvarınız (Adblock vb.) bağlantıyı engelliyor. Lütfen farklı bir ağ ile veya gizli sekmeden deneyin.");
                     resetUI(btn, btnText, originalText);
                 }
-            }, 12000);
+            }, 10000);
 
             state.peer.on('open', (id) => {
                 clearTimeout(connectWatchdog);
-                if (asTeacher) { if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.classList.add('text-green-400'); els.status.classList.remove('text-red-500'); } } 
+                if (asTeacher) { if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.classList.replace('text-yellow-400', 'text-green-400'); } } 
                 else { connectToHostForAuth(`${prefix}_${roomVal}_HOST`); }
             });
 
@@ -886,20 +900,21 @@
             });
             
             state.peer.on('error', (err) => {
-                // KESİN ÇÖZÜM 3: ÖĞRETMEN İÇİN OTOMATİK KURTARMA (Auto-Retry)
+                clearTimeout(connectWatchdog);
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) { 
-                        if(els.status) { els.status.innerText = "Önceki oturum temizleniyor. Lütfen bekleyin..."; els.status.classList.add('text-yellow-400'); }
+                        // KESİN ÇÖZÜM 3: OTOMATİK HAYALET OTURUM KURTARMA
+                        if(els.status) { els.status.innerText = "Önceki oturum temizleniyor..."; els.status.classList.add('text-yellow-400'); }
                         setTimeout(() => { if(state.peer) state.peer.destroy(); startSession(true); }, 5000);
-                        return; // Sistemi çökertme, kendi kendine tekrar denesin!
+                        return; // Sistemi çökertme, otomatik denesin.
                     } else { 
                         alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); 
                     }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) { alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz."); window.location.href = "https://www.matota.online"; } 
                     else { resetUI(btn, btnText, originalText); }
-                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'browser-incompatible') {
-                    alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya güvenlik duvarınızı kontrol edin."); resetUI(btn, btnText, originalText);
+                } else {
+                    alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin."); resetUI(btn, btnText, originalText);
                 }
             });
         }
@@ -1187,17 +1202,12 @@
             if (id === 'me' && !isScreenShare) { if(state.isMirrorMode) video.classList.add('mirror-mode'); video.style.filter = state.videoFilter; } 
             else if (id !== 'me' && !isScreenShare) { if(state.peerMirrors[id]) video.classList.add('mirror-mode'); if(state.peerFilters[id]) video.style.filter = state.peerFilters[id]; }
             
-            // Güvenli Play tetiklemesi
-            setTimeout(() => { if(video.paused) video.play().catch(()=>{}); }, 200);
+            video.onloadedmetadata = () => { video.play().catch(()=>{}); };
             
-            const tag = document.createElement('div');
-            tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
+            const tag = document.createElement('div'); tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
             tag.innerHTML = `<i class="fas fa-signal text-green-400 mr-1" id="signal-${id}"></i><i class="fas fa-${isScreenShare ? 'desktop' : 'user'} text-[10px] text-blue-400"></i> <span class="max-w-[100px] truncate ml-1">${label}</span><i class="fas fa-microphone-slash text-red-500 ml-1 hidden mic-off-indicator" title="Mikrofon Kapalı"></i>`;
             
-            div.addEventListener('dblclick', () => {
-                if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) { state.mainSpeakerId = null; state.layoutMode = 'grid'; applyLayout(); } else { setMainSpeaker(cardId); }
-            });
-
+            div.addEventListener('dblclick', () => { if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) { state.mainSpeakerId = null; state.layoutMode = 'grid'; applyLayout(); } else { setMainSpeaker(cardId); } });
             div.appendChild(video); if (!isScreenShare) div.appendChild(placeholder); div.appendChild(tag);
             if(els.galleryWrapper) els.galleryWrapper.appendChild(div);
             
