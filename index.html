@@ -662,7 +662,14 @@
                 } catch(e) {}
             }
             state.localStream = stream;
-            if(els.localPreview) { els.localPreview.srcObject = stream; els.localPreview.muted = true; els.localPreview.onloadedmetadata = () => { els.localPreview.play().catch(()=>{}); }; }
+            
+            // Lobi kamerasını serbest bırak (Kamera Çalma Hatasını engeller)
+            if(els.localPreview) { 
+                els.localPreview.srcObject = stream; 
+                els.localPreview.muted = true; 
+                els.localPreview.play().catch(()=>{}); 
+            }
+            
             updateButtonUI(els.btnMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash'); updateButtonUI(els.btnCam, state.isCamOn, 'fa-video', 'fa-video-slash');
             if(els.prevMic) updateButtonUI(els.prevMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash'); if(els.prevCam) updateButtonUI(els.prevCam, state.isCamOn, 'fa-video', 'fa-video-slash');
             return true;
@@ -676,6 +683,7 @@
 
         on(els.roomInput, 'input', (e) => { e.target.value = e.target.value.toLowerCase().replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]/g, ''); });
 
+        // --- POMODORO VE DİNAMİK AĞ KONTROL MOTORU ---
         function startTimer() {
             if(state.pomodoroInterval) clearInterval(state.pomodoroInterval);
             state.pomodoroInterval = setInterval(() => {
@@ -750,7 +758,7 @@
             });
             window.addEventListener("blur", () => {
                 const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`;
-                if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'ai-focus', sender: state.nickname, peerId: state.peer.id, status: 'away', reason: 'Odak kaybı' });
+                if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'ai-focus', sender: state.nickname, peerId: state.peer.id, status: 'away', reason: 'Odak kaybı (Başka uygulama)' });
             });
             window.addEventListener("focus", () => {
                 const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`;
@@ -770,20 +778,26 @@
 
         on(els.toggleWaitingRoom, 'change', (e) => { state.isWaitingRoomEnabled = e.target.checked; });
         on(els.toggleAiFocus, 'change', (e) => { state.isAiFocusEnabled = e.target.checked; });
-        on(els.btnSetPassword, 'click', () => { if(!els.adminPasswordInput) return; state.meetingPassword = els.adminPasswordInput.value.trim(); alert(state.meetingPassword ? 'Toplantı şifresi güncellendi.' : 'Toplantı şifresi kaldırıldı.'); });
+        on(els.btnSetPassword, 'click', () => {
+            if(!els.adminPasswordInput) return; state.meetingPassword = els.adminPasswordInput.value.trim(); alert(state.meetingPassword ? 'Toplantı şifresi güncellendi.' : 'Toplantı şifresi kaldırıldı.');
+        });
+
         on(els.btnSettings, 'click', () => { if(els.settingsModal) els.settingsModal.classList.remove('hidden'); });
         on(els.btnCloseSettings, 'click', () => { if(els.settingsModal) els.settingsModal.classList.add('hidden'); });
+
         on(els.videoFilterSelect, 'change', (e) => {
             state.videoFilter = e.target.value; const myVideo = document.querySelector('#vid-me video');
             if(myVideo) myVideo.style.filter = state.videoFilter; if(els.localPreview) els.localPreview.style.filter = state.videoFilter;
             broadcastData({ type: 'set-filter', filter: state.videoFilter });
         });
+
         on(els.toggleMirrorMode, 'change', (e) => {
             state.isMirrorMode = e.target.checked; const myVideo = document.querySelector('#vid-me video');
             if(myVideo) { if(state.isMirrorMode) myVideo.classList.add('mirror-mode'); else myVideo.classList.remove('mirror-mode'); }
             if(els.localPreview) { if(state.isMirrorMode) els.localPreview.classList.add('mirror-mode'); else els.localPreview.classList.remove('mirror-mode'); }
             broadcastData({ type: 'mirror-status', isMirrored: state.isMirrorMode });
         });
+
         on(els.globalVolumeSlider, 'input', (e) => {
             state.globalVolume = parseInt(e.target.value); if(els.volumeValDisplay) els.volumeValDisplay.innerText = `${state.globalVolume}%`;
             document.querySelectorAll('video').forEach(vid => { if(vid.id !== 'local-preview' && !vid.closest('#vid-me')) vid.volume = state.globalVolume / 100; });
@@ -803,13 +817,21 @@
             if (!state.localStream) { const hasPermission = await getMediaStream(); if (!hasPermission) { alert("Medya donanımı başlatılamadı."); resetButton(btn, btnText, originalText); return; } }
 
             state.roomName = roomVal; state.nickname = nickVal; state.isTeacher = asTeacher;
+            
             if(els.lobby) els.lobby.classList.add('hidden'); if(els.room) els.room.classList.remove('hidden');
             if(els.roomTitle) els.roomTitle.innerText = `MATOTA / ${roomVal}`;
+
+            // KESİN ÇÖZÜM 1: Lobi kamerasını sahneden önce tamamen serbest bırakıyoruz ki "Kamera Çalma" hatası yaşanmasın.
+            if(els.localPreview) {
+                els.localPreview.pause();
+                els.localPreview.srcObject = null;
+                els.localPreview.load(); // Tarayıcıya donanımı serbest bıraktırıyoruz
+            }
 
             if (asTeacher) {
                 if(els.btnUtils) els.btnUtils.classList.remove('hidden'); startTimer();
             } else {
-                if(els.status) { els.status.innerText = "Doğrulanıyor..."; els.status.classList.remove('text-green-400'); }
+                if(els.status) { els.status.innerText = "Sunucuya Bağlanılıyor..."; els.status.classList.remove('text-green-400'); }
                 initAttentionTracker();
             }
 
@@ -821,21 +843,38 @@
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
             let myId = asTeacher ? `${prefix}_${roomVal}_HOST` : `${prefix}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
 
-            state.peer = new Peer(myId, { debug: 1 });
+            // KESİN ÇÖZÜM 2: En güvenilir PeerJS bağlantısı için `secure: true` ve sağlam STUN sunucuları
+            try {
+                state.peer = new Peer(myId, { 
+                    debug: 1,
+                    secure: true,
+                    pingInterval: 5000,
+                    config: {
+                        'iceServers': [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:global.stun.twilio.com:3478' }
+                        ]
+                    }
+                });
+            } catch(e) {
+                alert("Sunucu motoru başlatılamadı. Lütfen sayfayı yenileyin.");
+                resetUI(btn, btnText, originalText);
+                return;
+            }
 
+            // Güvenlik Duvarı/Askıda Kalma Kontrolcüsü (Watchdog)
             let connectWatchdog = setTimeout(() => {
-                if (els.status && els.status.innerText !== "Ders Başlatıldı" && !state.isTeacher) {
-                    els.status.innerText = "Bağlantı Hatası!"; els.status.classList.replace('text-gray-400', 'text-red-400');
-                    alert("Sunucu yanıt vermiyor. Güvenlik duvarınız veya ağınız engelliyor olabilir. Sayfayı yenileyin.");
-                } else if (els.status && els.status.innerText !== "Ders Başlatıldı" && state.isTeacher) {
-                    els.status.innerText = "Bağlantı Hatası!"; els.status.classList.replace('text-gray-400', 'text-red-400');
-                    alert("Oda oluşturulamadı. Lütfen sayfayı yenileyin.");
+                if (els.status && (els.status.innerText === "Bağlantı Kuruluyor..." || els.status.innerText === "Doğrulanıyor..." || els.status.innerText === "Sunucuya Bağlanılıyor...")) {
+                    els.status.innerText = "Bağlantı Başarısız!"; 
+                    els.status.classList.replace('text-gray-400', 'text-red-500');
+                    alert("Sunucuya bağlanılamadı. Ağınız engelliyor olabilir veya eski oturumunuz sunucuda asılı kalmış olabilir. Lütfen sayfayı yenileyip tekrar deneyin.");
+                    resetUI(btn, btnText, originalText);
                 }
-            }, 8000);
+            }, 10000);
 
             state.peer.on('open', (id) => {
                 clearTimeout(connectWatchdog);
-                if (asTeacher) { if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.classList.add('text-green-400'); } } 
+                if (asTeacher) { if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.classList.add('text-green-400'); els.status.classList.remove('text-red-500'); } } 
                 else { connectToHostForAuth(`${prefix}_${roomVal}_HOST`); }
             });
 
@@ -872,12 +911,16 @@
             });
             
             state.peer.on('error', (err) => {
+                console.error("Peer Hatası:", err);
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) { alert("Bu ders odası arka planda aktif görünüyor. Lütfen 10 saniye bekleyip tekrar 'Kur' butonuna basın."); resetUI(btn, btnText, originalText); } 
                     else { alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) { alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz."); window.location.href = "https://www.matota.online"; } 
                     else { resetUI(btn, btnText, originalText); }
+                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'browser-incompatible') {
+                    alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya güvenlik duvarınızı kontrol edin.");
+                    resetUI(btn, btnText, originalText);
                 }
             });
         }
@@ -898,7 +941,7 @@
                 } else if (data.type === 'accepted') {
                     if(els.waitingOverlay) { els.waitingOverlay.classList.add('hidden'); els.waitingOverlay.classList.remove('flex'); }
                     if(els.passwordModal) { els.passwordModal.classList.add('hidden'); els.passwordModal.classList.remove('flex'); }
-                    if(els.status) { els.status.innerText = "Canlı Ders"; els.status.classList.add('text-green-400'); }
+                    if(els.status) { els.status.innerText = "Canlı Ders"; els.status.classList.remove('text-red-500'); els.status.classList.add('text-green-400'); }
                     
                     state.dataConnections[hostId] = conn; setupDataListener(conn);
 
@@ -1118,7 +1161,7 @@
                 els.videoArea.classList.remove('mode-speaker'); els.videoArea.classList.add('mode-grid');
                 document.querySelectorAll('.video-card').forEach(card => { els.galleryWrapper.appendChild(card); });
             }
-            setTimeout(() => { document.querySelectorAll('video').forEach(vid => { if (vid.srcObject && vid.paused) vid.play().catch(()=>{}); }); }, 50);
+            setTimeout(() => { document.querySelectorAll('video').forEach(vid => { if (vid.srcObject && vid.paused) vid.play().catch(()=>{}); }); }, 100);
         }
 
         function showFlyingEmoji(emoji, sender) {
@@ -1165,7 +1208,8 @@
             if (id === 'me' && !isScreenShare) { if(state.isMirrorMode) video.classList.add('mirror-mode'); video.style.filter = state.videoFilter; } 
             else if (id !== 'me' && !isScreenShare) { if(state.peerMirrors[id]) video.classList.add('mirror-mode'); if(state.peerFilters[id]) video.style.filter = state.peerFilters[id]; }
             
-            video.onloadedmetadata = () => { video.play().catch(()=>{}); };
+            // Güvenli Play tetiklemesi
+            setTimeout(() => { if(video.paused) video.play().catch(()=>{}); }, 200);
             
             const tag = document.createElement('div'); tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
             tag.innerHTML = `<i class="fas fa-signal text-green-400 mr-1" id="signal-${id}"></i><i class="fas fa-${isScreenShare ? 'desktop' : 'user'} text-[10px] text-blue-400"></i> <span class="max-w-[100px] truncate ml-1">${label}</span><i class="fas fa-microphone-slash text-red-500 ml-1 hidden mic-off-indicator" title="Mikrofon Kapalı"></i>`;
@@ -1297,7 +1341,8 @@
                     state.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
                     state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.recordedChunks.push(e.data); };
                     state.mediaRecorder.onstop = () => {
-                        const blob = new Blob(state.recordedChunks, { type: 'video/webm' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `MATOTA_Studyo_Kaydi_${new Date().getTime()}.webm`; a.click(); URL.revokeObjectURL(url); state.recordedChunks = [];
+                        const blob = new Blob(state.recordedChunks, { type: 'video/webm' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `MATOTA_Studyo_Kaydi_${new Date().getTime()}.webm`;
+                        a.click(); URL.revokeObjectURL(url); state.recordedChunks = [];
                     };
                     state.mediaRecorder.start(); state.isRecording = true; drawRecordFrame();
                     els.btnRecordToggle.innerHTML = '<i class="fas fa-stop text-xs"></i> Kaydı Bitir ve İndir'; els.btnRecordToggle.className = 'w-full bg-red-600 hover:bg-red-500 text-white rounded-lg py-2 text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-red-900/50';
