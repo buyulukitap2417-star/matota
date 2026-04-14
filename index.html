@@ -485,7 +485,9 @@
             isWaitingRoomEnabled: true, meetingPassword: '', waitingUsers: {}, waitingChimeInterval: null,
             videoFilter: 'none', isMirrorMode: true, globalVolume: 100, peerFilters: {}, peerMirrors: {},
             isAiFocusEnabled: true, studentFocusStatus: {},
-            isWbOpen: false, wbColor: '#000000', wbTool: 'pen', isDrawing: false, lastX: 0, lastY: 0, wbGrid: false
+            isWbOpen: false, wbColor: '#000000', wbTool: 'pen', isDrawing: false, lastX: 0, lastY: 0, wbGrid: false,
+            
+            retryCount: 0, hostWatchdog: null // YENİ: Öğrenci için Görünmez Kurtarma Motoru Hafızası
         };
 
         state.recordCanvas.width = 1280; state.recordCanvas.height = 720; state.recordCtx = state.recordCanvas.getContext('2d');
@@ -792,7 +794,7 @@
             document.querySelectorAll('video').forEach(vid => { if(vid.id !== 'local-preview' && !vid.closest('#vid-me')) vid.volume = state.globalVolume / 100; });
         });
 
-        // --- TAM GÜVENLİ VE HIZLI BAĞLANTI (ÇÖKME İMKANSIZ) ---
+        // --- TAM GÜVENLİ VE HIZLI BAĞLANTI (ÖĞRENCİ OTO-KURTARMA EKLENDİ) ---
         async function startSession(asTeacher) {
             initAudio(); 
             const btn = asTeacher ? els.btnCreate : els.btnJoin; const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
@@ -833,8 +835,7 @@
             let myId = asTeacher ? `${prefix}_${appIdStr}_${roomVal}_HOST` : `${prefix}_${appIdStr}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
 
             try {
-                // SADE, KESİNTİSİZ VE GÜÇLÜ PEERJS BAĞLANTISI
-                state.peer = new Peer(myId, {
+                state.peer = new Peer(myId, { 
                     debug: 1,
                     config: {
                         'iceServers': [
@@ -848,19 +849,17 @@
                 resetUI(btn, btnText, originalText); return;
             }
 
-            // KESİN ÇÖZÜM 1: ÇAKIŞMAYAN VE GARANTİLİ ZAMAN AŞIMI (WATCHDOG)
-            let connectWatchdog = setTimeout(() => {
-                if(els.status) { els.status.innerText = "Bağlantı Hatası!"; els.status.className = "text-[10px] text-red-500 font-bold ml-1"; }
-                alert("Sunucuya bağlanılamadı. Ağınız (veya AdBlock) engelliyor olabilir. Lütfen sayfayı yenileyin veya farklı ağ deneyin.");
-                resetUI(btn, btnText, originalText);
-            }, 12000);
+            // KOPMALARA KARŞI OTOMATİK YENİDEN BAĞLANMA
+            state.peer.on('disconnected', () => {
+                if (state.peer && !state.peer.destroyed) {
+                    state.peer.reconnect();
+                }
+            });
 
             state.peer.on('open', (id) => {
-                clearTimeout(connectWatchdog);
                 if (asTeacher) { 
                     if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.className = "text-[10px] text-green-400 font-bold ml-1"; } 
-                } 
-                else { 
+                } else { 
                     connectToHostForAuth(`${prefix}_${appIdStr}_${roomVal}_HOST`, btn, btnText, originalText); 
                 }
             });
@@ -898,38 +897,62 @@
             });
             
             state.peer.on('error', (err) => {
-                clearTimeout(connectWatchdog);
-                console.error("Peer Hatası:", err);
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) { 
-                        // KESİN ÇÖZÜM 2: OTOMATİK KURTARMA DÖNGÜSÜ YERİNE ANLIK ÇÖZÜM
-                        alert(`"${roomVal}" isimli oda şu an arka planda açık veya kilitli kalmış. Lütfen oda kodunun sonuna bir harf/rakam ekleyerek (Örn: ${roomVal}1) tekrar kurun.`);
-                        resetUI(btn, btnText, originalText); 
+                        if(els.status) { els.status.innerText = "Önceki oturum temizleniyor..."; els.status.classList.add('text-yellow-400'); }
+                        setTimeout(() => { if(state.peer) state.peer.destroy(); startSession(true); }, 3000);
+                        return; 
                     } else { 
-                        alert("Kimlik çakışması var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); 
+                        alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); 
                     }
                 } else if (err.type === 'peer-unavailable') {
-                    if (!state.isTeacher) { alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz."); window.location.href = "https://www.matota.online"; } 
-                    else { resetUI(btn, btnText, originalText); }
+                    if (!state.isTeacher) { 
+                        // ÖĞRENCİ İÇİN GÖRÜNMEZ OTOMATİK KURTARMA (3 KEZ DENER)
+                        if (!state.retryCount) state.retryCount = 0;
+                        state.retryCount++;
+                        if (state.retryCount <= 3) {
+                            if(els.status) els.status.innerText = `Öğretmen aranıyor (${state.retryCount}/3)...`;
+                            setTimeout(() => {
+                                const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                                const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                                connectToHostForAuth(`${prefix}_${appIdStr}_${state.roomName}_HOST`, btn, btnText, originalText); 
+                            }, 2000);
+                        } else {
+                            alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz."); 
+                            window.location.href = "https://www.matota.online"; 
+                        }
+                    } else { resetUI(btn, btnText, originalText); }
                 } else {
                     alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin."); resetUI(btn, btnText, originalText);
                 }
             });
         }
 
+        // --- GÖRÜNMEZ OTOMATİK BAĞLANTI (AUTO-RETRY) ---
         function connectToHostForAuth(hostId, btn, btnText, originalText, password = null) {
-            const conn = state.peer.connect(hostId);
-            if(els.status) els.status.innerText = "Doğrulanıyor...";
+            if (!state.retryCount) state.retryCount = 0;
             
-            let hostWatchdog = setTimeout(() => {
-                if(els.status && els.status.innerText === "Doğrulanıyor...") {
-                    alert("Öğretmene ulaşılamadı. Ders henüz başlamamış veya öğretmen hattan düşmüş olabilir.");
-                    resetUI(btn, btnText, originalText);
+            // reliable: true -> Veri kayıplarını ve kopmaları engeller
+            const conn = state.peer.connect(hostId, { reliable: true });
+            
+            if(els.status) els.status.innerText = state.retryCount > 0 ? `Bağlantı Tazeleniyor (${state.retryCount}/3)...` : "Doğrulanıyor...";
+            
+            clearTimeout(state.hostWatchdog);
+            state.hostWatchdog = setTimeout(() => {
+                if(els.status && (els.status.innerText.includes("Doğrulanıyor") || els.status.innerText.includes("Tazeleniyor") || els.status.innerText.includes("aranıyor"))) {
+                    state.retryCount++;
+                    if (state.retryCount <= 3) {
+                        connectToHostForAuth(hostId, btn, btnText, originalText, password);
+                    } else {
+                        alert("Öğretmene ulaşılamadı. Ders henüz başlamamış veya ağ engeli olabilir.");
+                        resetUI(btn, btnText, originalText);
+                    }
                 }
-            }, 8000);
+            }, 6000);
             
             conn.on('open', () => { 
-                clearTimeout(hostWatchdog);
+                clearTimeout(state.hostWatchdog);
+                state.retryCount = 0;
                 conn.send({ type: 'join-request', name: state.nickname, password: password, peerId: state.peer.id }); 
             });
 
@@ -973,6 +996,10 @@
             if(els.lobby) els.lobby.classList.remove('hidden'); 
             if(els.room) els.room.classList.add('hidden');
             resetButton(btn, txtEl, originalTxt); 
+            
+            clearTimeout(state.hostWatchdog);
+            state.retryCount = 0;
+
             if(state.peer) { state.peer.destroy(); state.peer = null; }
             if(state.pomodoroInterval) clearInterval(state.pomodoroInterval);
             if(els.timer) { els.timer.classList.add('hidden'); els.timer.innerText = "00:00:00"; }
