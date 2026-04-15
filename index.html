@@ -140,15 +140,15 @@
             background: #ffffff; border-radius: 12px; z-index: 50; display: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; border: 2px solid #3b82f6; cursor: crosshair !important;
         }
-        #wb-canvas { width: 100%; height: 100%; touch-action: none; }
+        #wb-canvas { width: 100%; height: 100%; touch-action: none; background: transparent; z-index: 2; position: relative; }
         #wb-toolbar {
-            position: absolute; left: 16px; top: 16px; background: rgba(15, 23, 42, 0.9); padding: 8px; border-radius: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+            position: absolute; left: 16px; top: 16px; background: rgba(15, 23, 42, 0.9); padding: 8px; border-radius: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); z-index: 10;
         }
         .wb-tool { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; transition: all 0.2s; border: 2px solid transparent;}
         .wb-tool.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.3); }
         .wb-tool:hover { background: rgba(255,255,255,0.1); }
         .math-grid {
-            background-image: linear-gradient(rgba(59, 130, 246, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px), linear-gradient(rgba(59, 130, 246, 0.4) 2px, transparent 2px), linear-gradient(90deg, rgba(59, 130, 246, 0.4) 2px, transparent 2px);
+            background-image: linear-gradient(rgba(59, 130, 246, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.3) 1px, transparent 1px), linear-gradient(rgba(59, 130, 246, 0.5) 2px, transparent 2px), linear-gradient(90deg, rgba(59, 130, 246, 0.5) 2px, transparent 2px);
             background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px; background-position: center center;
         }
     </style>
@@ -245,6 +245,8 @@
                     <div class="flex items-center gap-1.5 text-[10px] text-gray-400">
                         <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> 
                         <span id="conn-status" class="font-bold text-gray-400">Bağlantı Kuruluyor...</span>
+                        <!-- DERS SÜRESİ (TEKRAR EKLENDİ VE ONARILDI) -->
+                        <span id="meeting-timer" class="hidden ml-2 font-mono text-blue-400 font-bold border-l border-white/10 pl-2">00:00:00</span>
                         <span id="pomodoro-header" class="hidden ml-2 font-mono text-red-400 font-bold border-l border-white/10 pl-2 bg-red-900/30 px-2 rounded">🍅 Odak: 00:00</span>
                     </div>
                 </div>
@@ -280,9 +282,9 @@
                     <button class="wb-tool active" data-tool="pen" data-color="#000000" title="Siyah Kalem"><i class="fas fa-pen" style="color:black; filter:drop-shadow(0 0 1px white);"></i></button>
                     <button class="wb-tool" data-tool="pen" data-color="#3b82f6" title="Mavi Kalem"><i class="fas fa-pen text-blue-500"></i></button>
                     <button class="wb-tool" data-tool="pen" data-color="#ef4444" title="Kırmızı Kalem"><i class="fas fa-pen text-red-500"></i></button>
-                    <button class="wb-tool" data-tool="eraser" title="Silgi"><i class="fas fa-eraser text-white"></i></button>
+                    <!-- YENİ: SİLGİ ARTIK BEYAZ YAZAN BİR KALEMDİR -->
+                    <button class="wb-tool" data-tool="eraser" title="Silgi (Geniş Beyaz Kalem)"><i class="fas fa-eraser text-white"></i></button>
                     <div class="w-full h-px bg-white/20 my-1"></div>
-                    <!-- YENİ: ÇİZİM İZNİ KİLİDİ -->
                     <button id="btn-wb-lock" class="wb-tool hidden" title="Öğrenci Çizimi: Kapalı"><i class="fas fa-lock text-red-400"></i></button>
                     <button id="btn-wb-grid" class="wb-tool" title="Koordinat Düzlemi"><i class="fas fa-border-all text-gray-300"></i></button>
                     <button id="btn-wb-clear" class="wb-tool" title="Tahtayı Temizle"><i class="fas fa-trash-alt text-red-400"></i></button>
@@ -330,8 +332,6 @@
             
             <div class="w-px h-8 bg-gray-600 mx-1 self-center"></div>
             <button id="share-screen" class="w-12 h-12 rounded-full bg-gray-700 hover:bg-blue-600 text-white transition flex items-center justify-center text-lg" title="Ekran Paylaş"><i class="fas fa-desktop"></i></button>
-            
-            <!-- YENİ: Sadece öğretmende görünecek -->
             <button id="btn-open-wb" class="w-12 h-12 rounded-full bg-gray-700 hover:bg-green-600 text-white transition flex items-center justify-center text-lg" title="Beyaz Tahta"><i class="fas fa-chalkboard"></i></button>
 
             <div class="relative" id="emoji-menu-container">
@@ -465,6 +465,7 @@
             </div>
         </div>
         
+        <canvas id="timer-canvas" width="640" height="360" class="hidden"></canvas>
     </div>
 
     <script>
@@ -476,7 +477,7 @@
 
         const on = (element, event, handler) => { if (element) element.addEventListener(event, handler); };
 
-        let config = { appTitle: "MATOTA Online Eğitim", teacherName: "Mustafa Kemal", defaultRoom: "Matematik" };
+        let config = { appTitle: "MATOTA Online Eğitim", teacherName: "Mustafa Kemal", defaultRoom: "Matematik", theme: { backgroundGradient: "radial-gradient(at 50% 0%, #1e1b4b 0, #0f172a 70%)" } };
 
         const state = { 
             localStream: null, screenStream: null, screenCalls: [], peer: null, activeCalls: {}, dataConnections: {}, 
@@ -484,7 +485,10 @@
             isChatOpen: false, isParticipantsOpen: false,
             isRecording: false, mediaRecorder: null, recordedChunks: [], recordCanvas: document.createElement('canvas'),
             recordCtx: null, recordAnimFrame: null, audioMixer: null, audioSources: [],
-            pomodoroMode: 'none', pomodoroEndTime: 0, pomodoroInterval: null,
+            
+            // POMODORO STATE
+            pomodoroMode: 'none', pomodoroEndTime: 0, pomodoroInterval: null, toolTimerStream: null, toolTimerCalls: [],
+
             layoutMode: 'speaker', mainSpeakerId: null,
             isWaitingRoomEnabled: true, meetingPassword: '', waitingUsers: {}, waitingChimeInterval: null,
             videoFilter: 'none', isMirrorMode: true, globalVolume: 100, peerFilters: {}, peerMirrors: {},
@@ -505,7 +509,7 @@
             prevMic: document.getElementById('prev-mic-btn'), prevCam: document.getElementById('prev-cam-btn'), btnScreen: document.getElementById('share-screen'), btnLeave: document.getElementById('leave-btn'),
             btnEmoji: document.getElementById('btn-emoji'), btnRaiseHand: document.getElementById('btn-raise-hand'), btnToggleLayout: document.getElementById('btn-toggle-layout'),
             btnToggleChat: document.getElementById('btn-toggle-chat'), btnToggleParticipants: document.getElementById('btn-toggle-participants'), btnCloseChat: document.getElementById('btn-close-chat'), btnCloseParticipants: document.getElementById('btn-close-participants'),
-            roomTitle: document.getElementById('room-title'), status: document.getElementById('conn-status'), 
+            roomTitle: document.getElementById('room-title'), status: document.getElementById('conn-status'), timer: document.getElementById('meeting-timer'),
             sidebar: document.getElementById('participants-sidebar'), pList: document.getElementById('participants-list'), pCount: document.getElementById('participant-count'),
             btnUtils: document.getElementById('btn-utilities'), utilsModal: document.getElementById('utils-modal'), btnCloseUtils: document.getElementById('btn-close-utils'),
             chatSidebar: document.getElementById('chat-sidebar'), chatMessages: document.getElementById('chat-messages'), chatInput: document.getElementById('chat-input'), btnSendChat: document.getElementById('btn-send-chat'), chatNotif: document.getElementById('chat-notification'),
@@ -516,11 +520,11 @@
             btnSettings: document.getElementById('btn-settings'), settingsModal: document.getElementById('settings-modal'), btnCloseSettings: document.getElementById('btn-close-settings'),
             videoFilterSelect: document.getElementById('video-filter-select'), toggleMirrorMode: document.getElementById('toggle-mirror-mode'), globalVolumeSlider: document.getElementById('global-volume-slider'), volumeValDisplay: document.getElementById('volume-val-display'),
             btnOpenWb: document.getElementById('btn-open-wb'), wbContainer: document.getElementById('whiteboard-container'), wbCanvas: document.getElementById('wb-canvas'),
-            wbTools: document.querySelectorAll('.wb-tool[data-tool]'), btnWbGrid: document.getElementById('btn-wb-grid'), btnWbClear: document.getElementById('btn-wb-clear'), btnWbClose: document.getElementById('btn-wb-close'),
+            wbTools: document.querySelectorAll('.wb-tool[data-tool]'), btnWbGrid: document.getElementById('btn-wb-grid'), btnWbClear: document.getElementById('btn-wb-clear'), btnWbClose: document.getElementById('btn-wb-close'), btnWbLock: document.getElementById('btn-wb-lock'),
             aiAlertsContainer: document.getElementById('ai-alerts-container'),
             pomoFocusInput: document.getElementById('pomo-focus-input'), pomoBreakInput: document.getElementById('pomo-break-input'),
             btnPomoFocus: document.getElementById('btn-pomo-focus'), btnPomoBreak: document.getElementById('btn-pomo-break'), btnPomoStop: document.getElementById('btn-pomo-stop'),
-            pomodoroHeader: document.getElementById('pomodoro-header'), breakOverlay: document.getElementById('break-overlay'), breakTimerDisplay: document.getElementById('break-timer-display')
+            pomodoroHeader: document.getElementById('pomodoro-header'), breakOverlay: document.getElementById('break-overlay'), breakTimerDisplay: document.getElementById('break-timer-display'), timerCanvas: document.getElementById('timer-canvas')
         };
 
         const wbCtx = els.wbCanvas ? els.wbCanvas.getContext('2d') : null;
@@ -528,7 +532,9 @@
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.dropdown-menu') && !e.target.closest('.has-dropdown')) {
-                document.querySelectorAll('.dropdown-menu.show, .dropdown-menu.show-col').forEach(el => { el.classList.remove('show'); el.classList.remove('show-col'); });
+                document.querySelectorAll('.dropdown-menu.show, .dropdown-menu.show-col').forEach(el => {
+                    el.classList.remove('show'); el.classList.remove('show-col');
+                });
             }
         });
 
@@ -676,9 +682,42 @@
 
         on(els.roomInput, 'input', (e) => { e.target.value = e.target.value.toLowerCase().replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]/g, ''); });
 
+        function drawPomodoroCanvas() {
+            if (state.pomodoroMode === 'none') return;
+            const canvas = els.timerCanvas; const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            
+            const remain = state.pomodoroEndTime - Date.now();
+            if (remain > 0) {
+                const m = String(Math.floor(remain / 60000)).padStart(2, '0');
+                const s = String(Math.floor((remain % 60000) / 1000)).padStart(2, '0');
+                ctx.font = 'bold 100px "Plus Jakarta Sans", sans-serif';
+                ctx.fillText(`${m}:${s}`, canvas.width / 2, canvas.height / 2 - 10);
+                ctx.font = '24px sans-serif';
+                ctx.fillStyle = state.pomodoroMode === 'focus' ? '#3b82f6' : '#10b981';
+                ctx.fillText(state.pomodoroMode === 'focus' ? 'ODAK ZAMANI' : 'MOLA', canvas.width / 2, canvas.height / 2 + 70);
+            } else {
+                ctx.font = 'bold 60px sans-serif'; ctx.fillStyle = '#22c55e';
+                ctx.fillText('SÜRE BİTTİ', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
         function startTimer() {
-            if(state.pomodoroInterval) clearInterval(state.pomodoroInterval);
-            state.pomodoroInterval = setInterval(() => {
+            if(state.timerInterval) clearInterval(state.timerInterval);
+            state.startTime = Date.now();
+            state.timerInterval = setInterval(() => {
+                // 1. Ana Ders Süresi
+                const diff = Date.now() - state.startTime;
+                const hh = String(Math.floor(diff / 3600000)).padStart(2, '0');
+                const mm = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+                const ss = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+                if(els.timer) {
+                    els.timer.innerText = `${hh}:${mm}:${ss}`;
+                    els.timer.classList.remove('hidden');
+                }
+
+                // 2. Bağlantı Kalitesi Kontrolü
                 Object.keys(state.activeCalls).forEach(peerId => {
                     const call = state.activeCalls[peerId];
                     if (call && call.peerConnection) {
@@ -690,9 +729,14 @@
                         }
                     }
                 });
+            }, 1000);
 
+            if(state.pomodoroInterval) clearInterval(state.pomodoroInterval);
+            state.pomodoroInterval = setInterval(() => {
                 if (state.pomodoroMode !== 'none') {
                     const remain = state.pomodoroEndTime - Date.now();
+                    drawPomodoroCanvas();
+                    
                     if (remain <= 0) {
                         if (state.pomodoroMode === 'break') stopBreakMusic();
                         state.pomodoroMode = 'none';
@@ -701,6 +745,11 @@
                         if(els.btnPomoFocus) els.btnPomoFocus.classList.remove('hidden');
                         if(els.btnPomoBreak) els.btnPomoBreak.classList.remove('hidden');
                         if(els.btnPomoStop) els.btnPomoStop.classList.add('hidden');
+                        
+                        if (state.toolTimerStream) { state.toolTimerStream.getTracks().forEach(t => t.stop()); state.toolTimerStream = null; }
+                        state.toolTimerCalls.forEach(c => c.close()); state.toolTimerCalls = [];
+                        document.getElementById('vid-tool-timer')?.remove();
+                        if(state.mainSpeakerId === 'vid-tool-timer') { state.mainSpeakerId = autoSelectMainSpeaker(); applyLayout(); }
                     } else {
                         const m = String(Math.floor(remain / 60000)).padStart(2, '0'); const s = String(Math.floor((remain % 60000) / 1000)).padStart(2, '0');
                         if (state.pomodoroMode === 'break') { if(els.breakTimerDisplay) els.breakTimerDisplay.innerText = `${m}:${s}`; } 
@@ -717,6 +766,19 @@
         function startPomodoro(mode, duration, emit) {
             state.pomodoroMode = mode; state.pomodoroEndTime = Date.now() + (duration * 60000);
             if(els.btnPomoFocus) els.btnPomoFocus.classList.add('hidden'); if(els.btnPomoBreak) els.btnPomoBreak.classList.add('hidden'); if(els.btnPomoStop) els.btnPomoStop.classList.remove('hidden');
+            
+            // Pomodoro Kamera Yayınını Başlat
+            if (!state.toolTimerStream) {
+                state.toolTimerStream = els.timerCanvas.captureStream(15);
+                addVideo(state.toolTimerStream, "Zamanlayıcı", true, 'tool-timer', false);
+                state.participants.forEach(p => {
+                    if (p.id !== 'me') {
+                        const call = state.peer.call(p.id, state.toolTimerStream, { metadata: { type: 'timer' } });
+                        state.toolTimerCalls.push(call);
+                    }
+                });
+            }
+
             if (mode === 'break') {
                 if(els.breakOverlay) { els.breakOverlay.classList.remove('hidden'); els.breakOverlay.classList.add('flex'); }
                 if(els.pomodoroHeader) els.pomodoroHeader.classList.add('hidden'); playBreakMusic();
@@ -735,6 +797,12 @@
             if(els.pomodoroHeader) els.pomodoroHeader.classList.add('hidden');
             if(els.btnPomoFocus) els.btnPomoFocus.classList.remove('hidden'); if(els.btnPomoBreak) els.btnPomoBreak.classList.remove('hidden'); if(els.btnPomoStop) els.btnPomoStop.classList.add('hidden');
             stopBreakMusic();
+            
+            if (state.toolTimerStream) { state.toolTimerStream.getTracks().forEach(t => t.stop()); state.toolTimerStream = null; }
+            state.toolTimerCalls.forEach(c => c.close()); state.toolTimerCalls = [];
+            document.getElementById('vid-tool-timer')?.remove();
+            if(state.mainSpeakerId === 'vid-tool-timer') { state.mainSpeakerId = autoSelectMainSpeaker(); applyLayout(); }
+
             if(emit) {
                 if(state.isTeacher) broadcastData({ type: 'pomodoro', mode: 'none' });
                 else { const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`; if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'pomodoro', mode: 'none' }); }
@@ -795,90 +863,6 @@
             document.querySelectorAll('video').forEach(vid => { if(vid.id !== 'local-preview' && !vid.closest('#vid-me')) vid.volume = state.globalVolume / 100; });
         });
 
-        function togglePeerVideoPlaceholder(peerId, isEnabled) {
-            const container = document.getElementById(`vid-${peerId}`);
-            if (container) {
-                const placeholder = container.querySelector('.cam-placeholder');
-                if (placeholder) {
-                    if (isEnabled) { placeholder.style.display = 'none'; container.classList.remove('cam-off'); } 
-                    else { placeholder.style.display = 'flex'; container.classList.add('cam-off'); }
-                }
-            }
-        }
-
-        function togglePeerMicIndicator(peerId, isEnabled) {
-            const container = document.getElementById(`vid-${peerId}`);
-            if (container) {
-                const micIcon = container.querySelector('.mic-off-indicator');
-                if (micIcon) { if (isEnabled) micIcon.classList.add('hidden'); else micIcon.classList.remove('hidden'); }
-            }
-        }
-
-        window.forceMute = (peerId, target) => {
-            if(!state.isTeacher) return; const conn = state.dataConnections[peerId];
-            if (conn && conn.open) { conn.send({ type: 'force-mute', target: target }); }
-        };
-
-        function updateParticipantsList(id, name, isTeacherPeer) {
-            if (state.participants.some(p => p.id === id)) return;
-            state.participants.push({ id, name, isTeacherPeer }); renderParticipants();
-        }
-
-        function removeParticipant(id) {
-            const exists = state.participants.find(p => p.id === id);
-            if (exists) { playSound('leave'); state.participants = state.participants.filter(p => p.id !== id); renderParticipants(); }
-        }
-
-        function renderParticipants() {
-            if(els.pCount) els.pCount.innerText = state.participants.length;
-            if(els.pList) els.pList.innerHTML = '';
-            state.participants.forEach(p => {
-                const item = document.createElement('div'); item.className = 'flex items-center justify-between bg-white/5 p-2 rounded-lg text-xs mb-1';
-                const left = document.createElement('div'); left.className = 'flex items-center gap-2';
-                left.innerHTML = `<i class="fas fa-user-circle text-gray-400"></i> <span>${p.name} ${p.id === 'me' ? '(Sen)' : ''}</span>`;
-                item.appendChild(left);
-                
-                if (state.isTeacher && p.id !== 'me') {
-                    const menu = document.createElement('div'); menu.className = 'relative group';
-                    menu.innerHTML = `
-                        <button class="px-2 py-1 text-gray-400 hover:text-white transition" onclick="toggleParticipantMenu('${p.id}', event)"><i class="fas fa-ellipsis-v"></i></button>
-                        <div id="part-menu-${p.id}" class="dropdown-menu absolute right-0 mt-1 w-36 bg-gray-800 rounded-md shadow-2xl z-50 border border-gray-600 flex-col overflow-hidden">
-                            <button onclick="forceMute('${p.id}', 'mic')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-gray-700 transition"><i class="fas fa-microphone-slash w-4 text-center text-red-400 mr-1"></i> Sesi Kapat</button>
-                            <button onclick="forceMute('${p.id}', 'cam')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-gray-700 transition"><i class="fas fa-video-slash w-4 text-center text-red-400 mr-1"></i> Kamerayı Kapat</button>
-                            <button onclick="kickUser('${p.id}')" class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-gray-700 border-t border-gray-700 transition"><i class="fas fa-sign-out-alt w-4 text-center mr-1"></i> Dersten At</button>
-                        </div>
-                    `;
-                    item.appendChild(menu);
-                } else if (!state.isTeacher && p.id !== 'me') {
-                    if (state.studentFocusStatus[p.id] === 'away') {
-                        const statusIcon = document.createElement('div');
-                        statusIcon.innerHTML = `<i class="fas fa-eye-slash text-red-500" title="Dersten Koptu"></i>`;
-                        item.appendChild(statusIcon);
-                    }
-                }
-                if(els.pList) els.pList.appendChild(item);
-            });
-        }
-
-        window.kickUser = (peerId) => {
-            if(!confirm("Kullanıcı atılsın mı?")) return;
-            const conn = state.dataConnections[peerId];
-            if (conn && conn.open) conn.send({ type: 'kick' });
-            if (state.activeCalls[peerId]) state.activeCalls[peerId].close();
-            
-            const pId = `vid-${peerId}`; document.getElementById(pId)?.remove();
-            if(state.mainSpeakerId === pId) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
-            applyLayout(); removeParticipant(peerId);
-        };
-
-        window.toggleParticipantMenu = (peerId, event) => {
-            event.stopPropagation();
-            document.querySelectorAll('.dropdown-menu.show, .dropdown-menu.show-col').forEach(m => {
-                if (m.id !== `part-menu-${peerId}` && m.id !== 'emoji-dropdown') { m.classList.remove('show'); m.classList.remove('show-col'); }
-            });
-            const menu = document.getElementById(`part-menu-${peerId}`); if (menu) menu.classList.toggle('show-col');
-        };
-
         async function startSession(asTeacher) {
             initAudio(); 
             const btn = asTeacher ? els.btnCreate : els.btnJoin; const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
@@ -904,7 +888,7 @@
             if (asTeacher) {
                 if(els.btnUtils) els.btnUtils.classList.remove('hidden'); startTimer();
                 if(els.status) { els.status.innerText = "Oda Kuruluyor..."; els.status.className = "text-[10px] text-yellow-400 font-bold ml-1"; }
-                document.getElementById('btn-wb-lock').classList.remove('hidden');
+                if(els.btnWbLock) els.btnWbLock.classList.remove('hidden');
             } else {
                 if(els.status) { els.status.innerText = "Bağlanıyor..."; els.status.className = "text-[10px] text-yellow-400 font-bold ml-1"; }
                 initAttentionTracker();
@@ -953,19 +937,21 @@
 
             state.peer.on('call', (call) => {
                 const isScreenShare = call.metadata && call.metadata.type === 'screen';
+                const isTimer = call.metadata && call.metadata.type === 'timer';
                 const peerName = call.metadata && call.metadata.name ? call.metadata.name : "Kullanıcı";
                 call.answer(state.localStream);
 
                 call.on('stream', (remoteStream) => {
                     if (isScreenShare) { addVideo(remoteStream, "Ekran Paylaşımı", false, `screen-${call.peer}`, true); } 
+                    else if (isTimer) { addVideo(remoteStream, "Zamanlayıcı", true, `timer-${call.peer}`, false); }
                     else { addVideo(remoteStream, peerName, false, call.peer, false); updateParticipantsList(call.peer, peerName, false); }
                 });
-                if (!isScreenShare) state.activeCalls[call.peer] = call;
+                if (!isScreenShare && !isTimer) state.activeCalls[call.peer] = call;
                 call.on('close', () => {
-                    const removeId = isScreenShare ? `screen-${call.peer}` : call.peer;
+                    const removeId = isScreenShare ? `screen-${call.peer}` : (isTimer ? `timer-${call.peer}` : call.peer);
                     const fullCardId = `vid-${removeId}`; document.getElementById(fullCardId)?.remove();
                     if (state.mainSpeakerId === fullCardId) { state.mainSpeakerId = autoSelectMainSpeaker(); if (!state.mainSpeakerId) state.layoutMode = 'grid'; }
-                    applyLayout(); if (!isScreenShare) removeParticipant(call.peer);
+                    applyLayout(); if (!isScreenShare && !isTimer) removeParticipant(call.peer);
                 });
             });
             
@@ -1105,7 +1091,6 @@
                 if (data.type === 'leave-approved') { alert("Öğretmeniniz ayrılmanıza izin verdi."); window.location.href = "https://www.matota.online"; }
                 if (data.type === 'leave-denied') { alert("Öğretmeniniz şu an dersten ayrılmanıza izin vermedi."); }
                 
-                // YENİ: Tahta verilerini işler
                 if (data.type === 'wb-open') { openWhiteboard(false); if(state.isTeacher) broadcastData(data, conn.peer); }
                 if (data.type === 'wb-close') { closeWhiteboard(false); if(state.isTeacher) broadcastData(data, conn.peer); }
                 if (data.type === 'wb-draw') { drawLineOnCanvas(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false); if(state.isTeacher) broadcastData(data, conn.peer); }
@@ -1267,76 +1252,6 @@
             setTimeout(() => { document.querySelectorAll('video').forEach(vid => { if (vid.srcObject && vid.paused) vid.play().catch(()=>{}); }); }, 100);
         }
 
-        function showFlyingEmoji(emoji, sender) {
-            const el = document.createElement('div'); el.className = 'flying-emoji flex flex-col items-center';
-            el.innerHTML = `<span>${emoji}</span><span class="text-[8px] bg-black/50 px-1 rounded text-white mt-1 shadow">${sender}</span>`;
-            el.style.right = (20 + Math.random() * 80) + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 2500);
-        }
-
-        document.querySelectorAll('.emoji-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation(); const emoji = btn.dataset.emoji; showFlyingEmoji(emoji, state.nickname);
-                const emojiMenu = document.getElementById('emoji-dropdown'); if(emojiMenu) emojiMenu.classList.remove('show');
-                if(state.isTeacher) broadcastData({ type: 'emoji', emoji: emoji, sender: state.nickname });
-                else { 
-                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
-                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
-                    if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'emoji', emoji: emoji, sender: state.nickname }); 
-                }
-            });
-        });
-
-        on(document.getElementById('btn-raise-hand'), 'click', () => {
-            showRaisedHand('me');
-            if(state.isTeacher) broadcastData({ type: 'raise-hand', sender: state.nickname });
-            else { 
-                const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
-                const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
-                if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'raise-hand', sender: state.nickname }); 
-            }
-        });
-
-        function showRaisedHand(peerId) {
-            const vidCard = document.getElementById(`vid-${peerId}`);
-            if(vidCard) {
-                let hand = vidCard.querySelector('.raised-hand-icon');
-                if(!hand) { hand = document.createElement('div'); hand.className = 'raised-hand-icon absolute top-2 right-2 bg-yellow-500 text-white rounded-full w-6 h-6 flex items-center justify-center animate-bounce shadow-lg z-20'; hand.innerHTML = '<i class="fas fa-hand-paper text-xs"></i>'; vidCard.appendChild(hand); setTimeout(() => { if(hand) hand.remove(); }, 10000); }
-            }
-        }
-
-        function addVideo(stream, label, isMuted, id, isScreenShare) {
-            const cardId = `vid-${id}`; if(document.getElementById(cardId)) return;
-            const div = document.createElement('div'); div.className = 'video-card animate-fade-in group'; div.id = cardId;
-            if (isScreenShare) div.classList.add('is-screen-share');
-
-            const placeholder = document.createElement('div'); placeholder.className = 'cam-placeholder';
-            placeholder.innerHTML = `<div class="cam-placeholder-circle"><i class="fas fa-video-slash"></i></div><span>KAMERA KAPALI</span>`;
-            
-            const video = document.createElement('video'); video.srcObject = stream; video.autoplay = true; video.playsInline = true;
-            video.setAttribute('playsinline', ''); video.setAttribute('autoplay', '');
-            if (isMuted) { video.muted = true; video.setAttribute('muted', ''); }
-            
-            if (id === 'me' && !isScreenShare) { if(state.isMirrorMode) video.classList.add('mirror-mode'); video.style.filter = state.videoFilter; } 
-            else if (id !== 'me' && !isScreenShare) { if(state.peerMirrors[id]) video.classList.add('mirror-mode'); if(state.peerFilters[id]) video.style.filter = state.peerFilters[id]; }
-            
-            setTimeout(() => { if(video.paused) video.play().catch(()=>{}); }, 200);
-            
-            const tag = document.createElement('div');
-            tag.className = 'absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium border border-white/10 text-white flex items-center gap-2 z-10';
-            tag.innerHTML = `<i class="fas fa-signal text-green-400 mr-1" id="signal-${id}"></i><i class="fas fa-${isScreenShare ? 'desktop' : 'user'} text-[10px] text-blue-400"></i> <span class="max-w-[100px] truncate ml-1">${label}</span><i class="fas fa-microphone-slash text-red-500 ml-1 hidden mic-off-indicator" title="Mikrofon Kapalı"></i>`;
-            
-            div.addEventListener('dblclick', () => { if (state.layoutMode === 'speaker' && state.mainSpeakerId === cardId) { state.mainSpeakerId = null; state.layoutMode = 'grid'; applyLayout(); } else { setMainSpeaker(cardId); } });
-            div.appendChild(video); if (!isScreenShare) div.appendChild(placeholder); div.appendChild(tag);
-            if(els.galleryWrapper) els.galleryWrapper.appendChild(div);
-            
-            if (isScreenShare) { setMainSpeaker(cardId); } else if (!state.mainSpeakerId || state.layoutMode === 'grid') { state.mainSpeakerId = autoSelectMainSpeaker(); state.layoutMode = 'speaker'; applyLayout(); } else { applyLayout(); }
-            if (id !== 'me' && !isScreenShare) playSound('join');
-            if(id !== 'me') video.volume = state.globalVolume / 100;
-        }
-
-        // --- YENİ BEYAZ TAHTA ÇİZİM VE KİLİT YÖNETİMİ ---
         function initWhiteboard() {
             if (!wbCtx || !els.wbCanvas) return;
             els.wbCanvas.width = 1920; els.wbCanvas.height = 1080; wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round'; clearWhiteboard(true);
@@ -1362,7 +1277,6 @@
             on(els.btnWbClear, 'click', () => { clearWhiteboard(true); }); on(els.btnWbGrid, 'click', () => { toggleWbGrid(!state.wbGrid, true); }); on(els.btnWbClose, 'click', () => { closeWhiteboard(true); });
         }
 
-        // Çizim Kilidi
         on(document.getElementById('btn-wb-lock'), 'click', () => {
             if(!state.isTeacher) return;
             state.wbStudentDraw = !state.wbStudentDraw;
@@ -1374,10 +1288,11 @@
 
         function drawLineOnCanvas(x0, y0, x1, y1, color, size, emit) {
             wbCtx.beginPath(); wbCtx.moveTo(x0, y0); wbCtx.lineTo(x1, y1);
-            if(color === 'eraser') { wbCtx.globalCompositeOperation = 'destination-out'; wbCtx.lineWidth = size; wbCtx.strokeStyle = 'rgba(0,0,0,1)'; } else { wbCtx.globalCompositeOperation = 'source-over'; wbCtx.lineWidth = size; wbCtx.strokeStyle = color; }
+            wbCtx.globalCompositeOperation = 'source-over'; wbCtx.lineWidth = size; 
+            wbCtx.strokeStyle = color === 'eraser' ? '#ffffff' : color; // SİLGİ ARTIK BEYAZ KALEM
             wbCtx.stroke(); wbCtx.closePath();
             if (emit) {
-                const data = { type: 'wb-draw', x0, y0, x1, y1, color: state.wbTool === 'eraser' ? 'eraser' : color, size };
+                const data = { type: 'wb-draw', x0, y0, x1, y1, color: color, size };
                 if(state.isTeacher) broadcastData(data); 
                 else { 
                     const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
@@ -1389,8 +1304,7 @@
         }
 
         function clearWhiteboard(emit) {
-            wbCtx.globalCompositeOperation = 'source-over'; wbCtx.fillStyle = '#ffffff'; wbCtx.fillRect(0, 0, els.wbCanvas.width, els.wbCanvas.height);
-            if(state.wbGrid) toggleWbGrid(true, false); 
+            wbCtx.clearRect(0, 0, els.wbCanvas.width, els.wbCanvas.height);
             if (emit) { 
                 if(state.isTeacher) broadcastData({ type: 'wb-clear' }); 
                 else { 
@@ -1403,7 +1317,8 @@
         }
 
         function toggleWbGrid(enable, emit) {
-            state.wbGrid = enable; if(enable) els.wbCanvas.classList.add('math-grid'); else els.wbCanvas.classList.remove('math-grid');
+            state.wbGrid = enable; 
+            if(enable) els.wbContainer.classList.add('math-grid'); else els.wbContainer.classList.remove('math-grid');
             if(enable) els.btnWbGrid.classList.add('text-blue-500'); else els.btnWbGrid.classList.remove('text-blue-500');
             if (emit) { 
                 if(state.isTeacher) broadcastData({ type: 'wb-grid', enabled: enable }); 
@@ -1469,7 +1384,20 @@
         function drawRecordFrame() {
             if(!state.isRecording) return;
             const ctx = state.recordCtx; const canvas = state.recordCanvas; ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            if (state.isWbOpen && els.wbCanvas) { ctx.drawImage(els.wbCanvas, 0, 0, canvas.width, canvas.height); } else {
+            
+            if (state.isWbOpen && els.wbCanvas) {
+                // Tahta açıksa ve kayıt ediliyorsa beyaz zemin bas (Çünkü tuval şeffaf)
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Grid açıksa onu da videoya işle
+                if (state.wbGrid) {
+                    ctx.save(); ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)'; ctx.lineWidth = 1;
+                    for(let x=0; x<=canvas.width; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+                    for(let y=0; y<=canvas.height; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+                    ctx.restore();
+                }
+                ctx.drawImage(els.wbCanvas, 0, 0, canvas.width, canvas.height);
+            } else {
                 const videoCards = Array.from(document.querySelectorAll('.video-card:not(.hidden)')); const count = videoCards.length;
                 if(count > 0) {
                     if (state.layoutMode === 'speaker' && state.mainSpeakerId) {
@@ -1543,28 +1471,9 @@
             }
         });
 
-        window.toggleAudio = () => {
-            if (!state.localStream) return; const tracks = state.localStream.getAudioTracks();
-            if (tracks.length > 0) { tracks[0].enabled = !tracks[0].enabled; state.isMicOn = tracks[0].enabled; } else { state.isMicOn = false; }
-            updateButtonUI(els.btnMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash'); if(els.prevMic) updateButtonUI(els.prevMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash');
-            togglePeerMicIndicator('me', state.isMicOn); broadcastData({ type: 'mic-status', enabled: state.isMicOn });
-        }
-
-        window.toggleVideo = () => {
-            if (!state.localStream) return; const tracks = state.localStream.getVideoTracks();
-            if (tracks.length > 0) { tracks[0].enabled = !tracks[0].enabled; state.isCamOn = tracks[0].enabled; } else { state.isCamOn = false; }
-            updateButtonUI(els.btnCam, state.isCamOn, 'fa-video', 'fa-video-slash'); if(els.prevCam) updateButtonUI(els.prevCam, state.isCamOn, 'fa-video', 'fa-video-slash');
-            togglePeerVideoPlaceholder('me', state.isCamOn); broadcastData({ type: 'cam-status', enabled: state.isCamOn });
-        }
-
-        on(els.btnCreate, 'click', () => { initAudio(); startSession(true); }); on(els.btnJoin, 'click', () => { initAudio(); startSession(false); });
-        on(els.btnMic, 'click', window.toggleAudio); on(els.prevMic, 'click', window.toggleAudio);
-        on(els.btnCam, 'click', window.toggleVideo); on(els.prevCam, 'click', window.toggleVideo);
-        
-        on(els.btnCopyLink, 'click', () => { const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}&role=2s4t3`; navigator.clipboard.writeText(url); alert("Öğrenci Katılım Linki Kopyalandı!"); });
-
         on(els.btnLeave, 'click', () => { 
             if (state.isTeacher) {
+                broadcastData({ type: 'kick' });
                 if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state !== 'inactive') { els.btnRecordToggle.click(); setTimeout(() => { window.location.href = "https://www.matota.online"; }, 1500); } 
                 else { window.location.href = "https://www.matota.online"; }
             } else {
