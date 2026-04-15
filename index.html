@@ -486,8 +486,7 @@
             videoFilter: 'none', isMirrorMode: true, globalVolume: 100, peerFilters: {}, peerMirrors: {},
             isAiFocusEnabled: true, studentFocusStatus: {},
             isWbOpen: false, wbColor: '#000000', wbTool: 'pen', isDrawing: false, lastX: 0, lastY: 0, wbGrid: false,
-            
-            retryCount: 0, hostWatchdog: null // YENİ: Öğrenci için Görünmez Kurtarma Motoru Hafızası
+            retryCount: 0, hostWatchdog: null
         };
 
         state.recordCanvas.width = 1280; state.recordCanvas.height = 720; state.recordCtx = state.recordCanvas.getContext('2d');
@@ -522,6 +521,82 @@
 
         const wbCtx = els.wbCanvas ? els.wbCanvas.getContext('2d') : null;
         let audioCtx = null; let breakAudioNodes = [];
+
+        function togglePeerVideoPlaceholder(peerId, isEnabled) {
+            const container = document.getElementById(`vid-${peerId}`);
+            if (container) {
+                const placeholder = container.querySelector('.cam-placeholder');
+                if (placeholder) {
+                    if (isEnabled) { placeholder.style.display = 'none'; container.classList.remove('cam-off'); } 
+                    else { placeholder.style.display = 'flex'; container.classList.add('cam-off'); }
+                }
+            }
+        }
+
+        function togglePeerMicIndicator(peerId, isEnabled) {
+            const container = document.getElementById(`vid-${peerId}`);
+            if (container) {
+                const micIcon = container.querySelector('.mic-off-indicator');
+                if (micIcon) { if (isEnabled) micIcon.classList.add('hidden'); else micIcon.classList.remove('hidden'); }
+            }
+        }
+
+        window.forceMute = (peerId, target) => {
+            if(!state.isTeacher) return; const conn = state.dataConnections[peerId];
+            if (conn && conn.open) { conn.send({ type: 'force-mute', target: target }); }
+        };
+
+        function updateParticipantsList(id, name, isTeacherPeer) {
+            if (state.participants.some(p => p.id === id)) return;
+            state.participants.push({ id, name, isTeacherPeer }); renderParticipants();
+        }
+
+        function removeParticipant(id) {
+            const exists = state.participants.find(p => p.id === id);
+            if (exists) { playSound('leave'); state.participants = state.participants.filter(p => p.id !== id); renderParticipants(); }
+        }
+
+        function renderParticipants() {
+            if(els.pCount) els.pCount.innerText = state.participants.length;
+            if(els.pList) els.pList.innerHTML = '';
+            state.participants.forEach(p => {
+                const item = document.createElement('div'); item.className = 'flex items-center justify-between bg-white/5 p-2 rounded-lg text-xs mb-1';
+                const left = document.createElement('div'); left.className = 'flex items-center gap-2';
+                left.innerHTML = `<i class="fas fa-user-circle text-gray-400"></i> <span>${p.name} ${p.id === 'me' ? '(Sen)' : ''}</span>`;
+                item.appendChild(left);
+                
+                if (state.isTeacher && p.id !== 'me') {
+                    const menu = document.createElement('div'); menu.className = 'relative group';
+                    menu.innerHTML = `
+                        <button class="px-2 py-1 text-gray-400 hover:text-white transition" onclick="toggleParticipantMenu('${p.id}', event)"><i class="fas fa-ellipsis-v"></i></button>
+                        <div id="part-menu-${p.id}" class="dropdown-menu absolute right-0 mt-1 w-36 bg-gray-800 rounded-md shadow-2xl z-50 border border-gray-600 flex-col overflow-hidden">
+                            <button onclick="forceMute('${p.id}', 'mic')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-gray-700 transition"><i class="fas fa-microphone-slash w-4 text-center text-red-400 mr-1"></i> Sesi Kapat</button>
+                            <button onclick="forceMute('${p.id}', 'cam')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-gray-700 transition"><i class="fas fa-video-slash w-4 text-center text-red-400 mr-1"></i> Kamerayı Kapat</button>
+                            <button onclick="kickUser('${p.id}')" class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-gray-700 border-t border-gray-700 transition"><i class="fas fa-sign-out-alt w-4 text-center mr-1"></i> Dersten At</button>
+                        </div>
+                    `;
+                    item.appendChild(menu);
+                } else if (!state.isTeacher && p.id !== 'me') {
+                    if (state.studentFocusStatus[p.id] === 'away') {
+                        const statusIcon = document.createElement('div');
+                        statusIcon.innerHTML = `<i class="fas fa-eye-slash text-red-500" title="Dersten Koptu"></i>`;
+                        item.appendChild(statusIcon);
+                    }
+                }
+                if(els.pList) els.pList.appendChild(item);
+            });
+        }
+
+        window.kickUser = (peerId) => {
+            if(!confirm("Kullanıcı atılsın mı?")) return;
+            const conn = state.dataConnections[peerId];
+            if (conn && conn.open) conn.send({ type: 'kick' });
+            if (state.activeCalls[peerId]) state.activeCalls[peerId].close();
+            
+            const pId = `vid-${peerId}`; document.getElementById(pId)?.remove();
+            if(state.mainSpeakerId === pId) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
+            applyLayout(); removeParticipant(peerId);
+        };
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.dropdown-menu') && !e.target.closest('.has-dropdown')) {
@@ -794,7 +869,7 @@
             document.querySelectorAll('video').forEach(vid => { if(vid.id !== 'local-preview' && !vid.closest('#vid-me')) vid.volume = state.globalVolume / 100; });
         });
 
-        // --- TAM GÜVENLİ VE HIZLI BAĞLANTI (ÖĞRENCİ OTO-KURTARMA EKLENDİ) ---
+        // --- TAM GÜVENLİ VE HIZLI BAĞLANTI SİSTEMİ ---
         async function startSession(asTeacher) {
             initAudio(); 
             const btn = asTeacher ? els.btnCreate : els.btnJoin; const btnText = asTeacher ? els.btnCreateText : els.btnJoinText;
@@ -819,7 +894,6 @@
 
             if (asTeacher) {
                 if(els.btnUtils) els.btnUtils.classList.remove('hidden'); startTimer();
-                if(els.status) { els.status.innerText = "Oda Kuruluyor..."; els.status.className = "text-[10px] text-yellow-400 font-bold ml-1"; }
             } else {
                 if(els.status) { els.status.innerText = "Bağlanıyor..."; els.status.className = "text-[10px] text-yellow-400 font-bold ml-1"; }
                 initAttentionTracker();
@@ -835,26 +909,11 @@
             let myId = asTeacher ? `${prefix}_${appIdStr}_${roomVal}_HOST` : `${prefix}_${appIdStr}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
 
             try {
-                state.peer = new Peer(myId, { 
-                    debug: 1,
-                    config: {
-                        'iceServers': [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:global.stun.twilio.com:3478' }
-                        ]
-                    }
-                });
+                state.peer = new Peer(myId);
             } catch(e) {
                 alert("İletişim motoru başlatılamadı. Lütfen sayfayı yenileyin.");
                 resetUI(btn, btnText, originalText); return;
             }
-
-            // KOPMALARA KARŞI OTOMATİK YENİDEN BAĞLANMA
-            state.peer.on('disconnected', () => {
-                if (state.peer && !state.peer.destroyed) {
-                    state.peer.reconnect();
-                }
-            });
 
             state.peer.on('open', (id) => {
                 if (asTeacher) { 
@@ -899,15 +958,13 @@
             state.peer.on('error', (err) => {
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) { 
-                        if(els.status) { els.status.innerText = "Önceki oturum temizleniyor..."; els.status.classList.add('text-yellow-400'); }
-                        setTimeout(() => { if(state.peer) state.peer.destroy(); startSession(true); }, 3000);
-                        return; 
+                        alert(`DİKKAT: "${roomVal}" isimli oda bir önceki oturumdan dolayı arka planda hala kilitli durumda. Lütfen oda kodunuzun sonuna bir sayı ekleyerek (Örn: ${roomVal}1) yepyeni bir oda kurun.`);
+                        resetUI(btn, btnText, originalText); 
                     } else { 
-                        alert("Oda kimliğinde çakışma var. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); 
+                        alert("Kimlik çakışması var. Lütfen sayfayı yenileyip tekrar deneyin."); resetUI(btn, btnText, originalText); 
                     }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) { 
-                        // ÖĞRENCİ İÇİN GÖRÜNMEZ OTOMATİK KURTARMA (3 KEZ DENER)
                         if (!state.retryCount) state.retryCount = 0;
                         state.retryCount++;
                         if (state.retryCount <= 3) {
@@ -918,7 +975,7 @@
                                 connectToHostForAuth(`${prefix}_${appIdStr}_${state.roomName}_HOST`, btn, btnText, originalText); 
                             }, 2000);
                         } else {
-                            alert("Ders henüz başlatılmadı veya öğretmen dersten ayrıldı. Ana sayfaya yönlendiriliyorsunuz."); 
+                            alert("Öğretmen odadan ayrılmış veya ders henüz başlamamış."); 
                             window.location.href = "https://www.matota.online"; 
                         }
                     } else { resetUI(btn, btnText, originalText); }
@@ -928,11 +985,8 @@
             });
         }
 
-        // --- GÖRÜNMEZ OTOMATİK BAĞLANTI (AUTO-RETRY) ---
         function connectToHostForAuth(hostId, btn, btnText, originalText, password = null) {
             if (!state.retryCount) state.retryCount = 0;
-            
-            // reliable: true -> Veri kayıplarını ve kopmaları engeller
             const conn = state.peer.connect(hostId, { reliable: true });
             
             if(els.status) els.status.innerText = state.retryCount > 0 ? `Bağlantı Tazeleniyor (${state.retryCount}/3)...` : "Doğrulanıyor...";
@@ -948,7 +1002,7 @@
                         resetUI(btn, btnText, originalText);
                     }
                 }
-            }, 6000);
+            }, 8000);
             
             conn.on('open', () => { 
                 clearTimeout(state.hostWatchdog);
