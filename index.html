@@ -190,6 +190,22 @@
         </div>
     </div>
 
+    <!-- ÖĞRENCİ ÇIKIŞ İZNİ MODALI (ÖĞRETMEN İÇİN) -->
+    <div id="leave-request-modal" class="hidden fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex-col items-center justify-center p-4">
+        <div class="bg-gray-800 border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative overflow-hidden text-center">
+            <div class="absolute top-0 left-0 w-full h-1 bg-yellow-500"></div>
+            <div class="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <i class="fas fa-sign-out-alt text-3xl text-yellow-400"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 text-white">Çıkış İzni İsteği</h3>
+            <p id="leave-request-text" class="text-sm text-gray-300 mb-6">Öğrenci dersten ayrılmak istiyor.</p>
+            <div class="flex gap-3">
+                <button id="btn-approve-leave" class="flex-1 bg-green-600 hover:bg-green-500 text-white rounded-xl px-4 py-3 transition font-bold shadow-lg"><i class="fas fa-check mr-2"></i>İzin Ver</button>
+                <button id="btn-deny-leave" class="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-xl px-4 py-3 transition font-bold shadow-lg"><i class="fas fa-times mr-2"></i>Reddet</button>
+            </div>
+        </div>
+    </div>
+
     <!-- LOBİ EKRANI -->
     <div id="lobby-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 bg-[#0f172a] hidden">
         <div class="text-center mb-6">
@@ -490,7 +506,7 @@
             videoFilter: 'none', isMirrorMode: true, globalVolume: 100, peerFilters: {}, peerMirrors: {},
             isAiFocusEnabled: true, studentFocusStatus: {},
             isWbOpen: false, wbColor: '#000000', wbTool: 'pen', isDrawing: false, lastX: 0, lastY: 0, wbGrid: false,
-            wbStudentDraw: false, retryCount: 0, hostWatchdog: null
+            wbStudentDraw: false, retryCount: 0, hostWatchdog: null, currentLeaveRequestPeerId: null
         };
 
         state.recordCanvas.width = 1280; state.recordCanvas.height = 720; state.recordCtx = state.recordCanvas.getContext('2d');
@@ -520,7 +536,9 @@
             aiAlertsContainer: document.getElementById('ai-alerts-container'),
             pomoFocusInput: document.getElementById('pomo-focus-input'), pomoBreakInput: document.getElementById('pomo-break-input'),
             btnPomoFocus: document.getElementById('btn-pomo-focus'), btnPomoBreak: document.getElementById('btn-pomo-break'), btnPomoStop: document.getElementById('btn-pomo-stop'),
-            pomodoroHeader: document.getElementById('pomodoro-header'), breakOverlay: document.getElementById('break-overlay'), breakTimerDisplay: document.getElementById('break-timer-display'), timerCanvas: document.getElementById('timer-canvas')
+            pomodoroHeader: document.getElementById('pomodoro-header'), breakOverlay: document.getElementById('break-overlay'), breakTimerDisplay: document.getElementById('break-timer-display'), timerCanvas: document.getElementById('timer-canvas'),
+            leaveRequestModal: document.getElementById('leave-request-modal'), leaveRequestText: document.getElementById('leave-request-text'),
+            btnApproveLeave: document.getElementById('btn-approve-leave'), btnDenyLeave: document.getElementById('btn-deny-leave')
         };
 
         const wbCtx = els.wbCanvas ? els.wbCanvas.getContext('2d') : null;
@@ -706,7 +724,10 @@
                 const hh = String(Math.floor(diff / 3600000)).padStart(2, '0');
                 const mm = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
                 const ss = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
-                if(els.timer) { els.timer.innerText = `${hh}:${mm}:${ss}`; els.timer.classList.remove('hidden'); }
+                if(els.timer) { 
+                    els.timer.innerText = `${hh}:${mm}:${ss}`; 
+                    if(state.isTeacher) els.timer.classList.remove('hidden'); 
+                }
 
                 Object.keys(state.activeCalls).forEach(peerId => {
                     const call = state.activeCalls[peerId];
@@ -1010,7 +1031,14 @@
                         }
                     }
                 });
-                conn.on('close', () => { if(state.waitingUsers[conn.peer]) { delete state.waitingUsers[conn.peer]; renderWaitingList(); } });
+                conn.on('close', () => { 
+                    if(state.waitingUsers[conn.peer]) { delete state.waitingUsers[conn.peer]; renderWaitingList(); }
+                    // Öğrenci sekme kapattığında listelerden ve ekrandan anında silinmesi garantisi:
+                    removeParticipant(conn.peer);
+                    const pCard = document.getElementById(`vid-${conn.peer}`); if (pCard) pCard.remove();
+                    if (state.mainSpeakerId === `vid-${conn.peer}`) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
+                    applyLayout();
+                });
             });
 
             state.peer.on('call', (call) => {
@@ -1154,13 +1182,30 @@
                     if(state.isTeacher) broadcastData(data, conn.peer); 
                 }
                 if(data.type === 'raise-hand') { playSound('raise-hand'); showRaisedHand(conn.peer); if(state.isTeacher) broadcastData(data, conn.peer); }
+                
                 if (data.type === 'leave-request' && state.isTeacher) {
-                    if (confirm(`${data.name} adlı öğrenci dersten ayrılmak istiyor. İzin veriyor musunuz?`)) { state.dataConnections[conn.peer].send({type: 'leave-approved'}); } 
-                    else { state.dataConnections[conn.peer].send({type: 'leave-denied'}); }
+                    state.currentLeaveRequestPeerId = conn.peer;
+                    if(els.leaveRequestText) els.leaveRequestText.innerText = `${data.name} adlı öğrenci dersten ayrılmak istiyor. İzin veriyor musunuz?`;
+                    if(els.leaveRequestModal) { els.leaveRequestModal.classList.remove('hidden'); els.leaveRequestModal.classList.add('flex'); }
+                    playSound('alert');
                 }
-                if (data.type === 'leave-approved') { alert("Öğretmeniniz ayrılmanıza izin verdi."); window.location.href = "https://www.matota.online"; }
+                if (data.type === 'leave-approved') { 
+                    alert("Öğretmeniniz ayrılmanıza izin verdi."); 
+                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
+                    if(state.dataConnections[hostId] && state.dataConnections[hostId].open) { state.dataConnections[hostId].send({type: 'student-leaving', peerId: state.peer.id}); }
+                    setTimeout(() => { window.location.href = "https://www.matota.online"; }, 500); 
+                }
                 if (data.type === 'leave-denied') { alert("Öğretmeniniz şu an dersten ayrılmanıza izin vermedi."); }
                 
+                if (data.type === 'student-leaving' && state.isTeacher) {
+                    removeParticipant(data.peerId);
+                    const pCard = document.getElementById(`vid-${data.peerId}`); if (pCard) pCard.remove();
+                    if (state.mainSpeakerId === `vid-${data.peerId}`) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
+                    applyLayout();
+                }
+
                 if (data.type === 'stop-screen') {
                     const fullCardId = `vid-screen-${data.peerId}`; document.getElementById(fullCardId)?.remove();
                     if (state.mainSpeakerId === fullCardId) { state.mainSpeakerId = autoSelectMainSpeaker(); if (!state.mainSpeakerId) state.layoutMode = 'grid'; }
@@ -1620,6 +1665,29 @@
         on(els.btnCopyLink, 'click', () => { const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}&role=2s4t3`; navigator.clipboard.writeText(url); alert("Öğrenci Katılım Linki Kopyalandı!"); });
 
         on(document.getElementById('btn-end-break-early'), 'click', () => { stopPomodoro(true); });
+
+        on(els.btnApproveLeave, 'click', () => {
+            if(state.currentLeaveRequestPeerId && state.dataConnections[state.currentLeaveRequestPeerId] && state.dataConnections[state.currentLeaveRequestPeerId].open) {
+                state.dataConnections[state.currentLeaveRequestPeerId].send({type: 'leave-approved'});
+                // Öğrencinin interneti koparsa diye yedek temizleme garantisi:
+                setTimeout(() => {
+                    removeParticipant(state.currentLeaveRequestPeerId);
+                    const pCard = document.getElementById(`vid-${state.currentLeaveRequestPeerId}`); if (pCard) pCard.remove();
+                    if (state.mainSpeakerId === `vid-${state.currentLeaveRequestPeerId}`) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
+                    applyLayout();
+                }, 2000);
+            }
+            if(els.leaveRequestModal) { els.leaveRequestModal.classList.add('hidden'); els.leaveRequestModal.classList.remove('flex'); }
+            state.currentLeaveRequestPeerId = null;
+        });
+
+        on(els.btnDenyLeave, 'click', () => {
+            if(state.currentLeaveRequestPeerId && state.dataConnections[state.currentLeaveRequestPeerId] && state.dataConnections[state.currentLeaveRequestPeerId].open) {
+                state.dataConnections[state.currentLeaveRequestPeerId].send({type: 'leave-denied'});
+            }
+            if(els.leaveRequestModal) { els.leaveRequestModal.classList.add('hidden'); els.leaveRequestModal.classList.remove('flex'); }
+            state.currentLeaveRequestPeerId = null;
+        });
 
         on(els.btnLeave, 'click', () => { 
             if (state.isTeacher) {
