@@ -170,7 +170,8 @@
         </div>
         <h2 class="text-4xl font-bold text-white mb-4 tracking-tight">Mola Zamanı</h2>
         <p class="text-gray-400 text-lg mb-8 max-w-md">Lütfen ekran başından ayrılıp gözlerinizi dinlendirin. Arka plandaki rahatlatıcı ambiyans müziği eşliğinde zihninizi tazeleyin.</p>
-        <div class="text-6xl font-mono font-bold text-blue-400 tracking-widest shadow-blue-500/50 drop-shadow-2xl" id="break-timer-display">00:00</div>
+        <div class="text-6xl font-mono font-bold text-blue-400 tracking-widest shadow-blue-500/50 drop-shadow-2xl mb-8" id="break-timer-display">00:00</div>
+        <button id="btn-end-break-early" class="hidden px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition shadow-lg"><i class="fas fa-stop mr-2"></i>Molayı Bitir</button>
     </div>
 
     <div id="waiting-room-overlay" class="hidden fixed inset-0 z-[120] bg-[#0f172a]/95 backdrop-blur-xl flex-col items-center justify-center">
@@ -793,6 +794,7 @@
                 state.toolTimerCalls.forEach(c => c.close()); state.toolTimerCalls = [];
                 document.getElementById('vid-tool-timer')?.remove();
                 if(state.mainSpeakerId === 'vid-tool-timer') { state.mainSpeakerId = autoSelectMainSpeaker(); applyLayout(); }
+                if (state.peer) broadcastData({ type: 'stop-timer', peerId: state.peer.id });
             }
 
             if(emit) {
@@ -966,6 +968,8 @@
                 if(els.btnUtils) els.btnUtils.classList.remove('hidden'); startTimer();
                 if(els.status) { els.status.innerText = "Oda Kuruluyor..."; els.status.className = "text-[10px] text-yellow-400 font-bold ml-1"; }
                 if(els.btnWbLock) els.btnWbLock.classList.remove('hidden');
+                const btnEndBreak = document.getElementById('btn-end-break-early');
+                if (btnEndBreak) btnEndBreak.classList.remove('hidden');
             } else {
                 if(els.status) { els.status.innerText = "Bağlanıyor..."; els.status.className = "text-[10px] text-yellow-400 font-bold ml-1"; }
                 initAttentionTracker();
@@ -1157,6 +1161,17 @@
                 if (data.type === 'leave-approved') { alert("Öğretmeniniz ayrılmanıza izin verdi."); window.location.href = "https://www.matota.online"; }
                 if (data.type === 'leave-denied') { alert("Öğretmeniniz şu an dersten ayrılmanıza izin vermedi."); }
                 
+                if (data.type === 'stop-screen') {
+                    const fullCardId = `vid-screen-${data.peerId}`; document.getElementById(fullCardId)?.remove();
+                    if (state.mainSpeakerId === fullCardId) { state.mainSpeakerId = autoSelectMainSpeaker(); if (!state.mainSpeakerId) state.layoutMode = 'grid'; }
+                    applyLayout();
+                }
+                if (data.type === 'stop-timer') {
+                    const fullCardId = `vid-timer-${data.peerId}`; document.getElementById(fullCardId)?.remove();
+                    if (state.mainSpeakerId === fullCardId) { state.mainSpeakerId = autoSelectMainSpeaker(); if (!state.mainSpeakerId) state.layoutMode = 'grid'; }
+                    applyLayout();
+                }
+
                 if (data.type === 'wb-open') { openWhiteboard(false); if(state.isTeacher) broadcastData(data, conn.peer); }
                 if (data.type === 'wb-close') { closeWhiteboard(false); if(state.isTeacher) broadcastData(data, conn.peer); }
                 if (data.type === 'wb-draw') { drawLineOnCanvas(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false); if(state.isTeacher) broadcastData(data, conn.peer); }
@@ -1572,6 +1587,7 @@
                 const screenId = 'vid-myscreen'; document.getElementById(screenId)?.remove();
                 if(state.mainSpeakerId === screenId) { state.mainSpeakerId = autoSelectMainSpeaker(); if (!state.mainSpeakerId) state.layoutMode = 'grid'; }
                 state.screenCalls.forEach(call => call.close()); state.screenCalls = []; applyLayout();
+                if(state.peer) broadcastData({ type: 'stop-screen', peerId: state.peer.id });
             } else {
                 try {
                     const shareStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: true });
@@ -1602,6 +1618,8 @@
         on(els.btnCam, 'click', window.toggleVideo); on(els.prevCam, 'click', window.toggleVideo);
         
         on(els.btnCopyLink, 'click', () => { const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}&role=2s4t3`; navigator.clipboard.writeText(url); alert("Öğrenci Katılım Linki Kopyalandı!"); });
+
+        on(document.getElementById('btn-end-break-early'), 'click', () => { stopPomodoro(true); });
 
         on(els.btnLeave, 'click', () => { 
             if (state.isTeacher) {
