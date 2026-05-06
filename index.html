@@ -162,6 +162,13 @@
         </div>
     </div>
 
+    <!-- BAĞLANTI KOPMA (RECONNECT) OVERLAY -->
+    <div id="reconnect-overlay" class="hidden fixed inset-0 z-[250] bg-[#0f172a]/95 backdrop-blur-xl flex-col items-center justify-center">
+        <div class="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h2 class="text-2xl font-bold text-white mb-2 tracking-wide">Bağlantı Bekleniyor</h2>
+        <p class="text-gray-400 text-sm text-center max-w-md px-4">Sunucu ile bağlantınız kesildi. Sizi dersten atmadan tekrar bağlanmaya çalışıyoruz, lütfen bekleyiniz...</p>
+    </div>
+
     <div id="ai-alerts-container" class="fixed bottom-24 left-4 z-[160] flex flex-col gap-2 pointer-events-none"></div>
 
     <div id="break-overlay" class="hidden absolute inset-0 z-[140] bg-[#0f172a]/95 backdrop-blur-2xl flex-col items-center justify-center text-center p-6">
@@ -506,7 +513,7 @@
             videoFilter: 'none', isMirrorMode: true, globalVolume: 100, peerFilters: {}, peerMirrors: {},
             isAiFocusEnabled: true, studentFocusStatus: {},
             isWbOpen: false, wbColor: '#000000', wbTool: 'pen', isDrawing: false, lastX: 0, lastY: 0, wbGrid: false,
-            wbStudentDraw: false, retryCount: 0, hostWatchdog: null, currentLeaveRequestPeerId: null
+            wbStudentDraw: false, retryCount: 0, hostWatchdog: null, currentLeaveRequestPeerId: null, reconnectTimeout: null
         };
 
         state.recordCanvas.width = 1280; state.recordCanvas.height = 720; state.recordCtx = state.recordCanvas.getContext('2d');
@@ -538,7 +545,8 @@
             btnPomoFocus: document.getElementById('btn-pomo-focus'), btnPomoBreak: document.getElementById('btn-pomo-break'), btnPomoStop: document.getElementById('btn-pomo-stop'),
             pomodoroHeader: document.getElementById('pomodoro-header'), breakOverlay: document.getElementById('break-overlay'), breakTimerDisplay: document.getElementById('break-timer-display'), timerCanvas: document.getElementById('timer-canvas'),
             leaveRequestModal: document.getElementById('leave-request-modal'), leaveRequestText: document.getElementById('leave-request-text'),
-            btnApproveLeave: document.getElementById('btn-approve-leave'), btnDenyLeave: document.getElementById('btn-deny-leave')
+            btnApproveLeave: document.getElementById('btn-approve-leave'), btnDenyLeave: document.getElementById('btn-deny-leave'),
+            reconnectOverlay: document.getElementById('reconnect-overlay')
         };
 
         const wbCtx = els.wbCanvas ? els.wbCanvas.getContext('2d') : null;
@@ -622,6 +630,30 @@
             }
         }
 
+        // YENİ: BAĞLANTI KOPMA KURTARICI FONKSİYONU
+        function handleDisconnection() {
+            if (!state.peer || state.peer.destroyed) return;
+            if (els.reconnectOverlay) { els.reconnectOverlay.classList.remove('hidden'); els.reconnectOverlay.classList.add('flex'); }
+            
+            if (state.peer.disconnected) state.peer.reconnect();
+            
+            const checkReconnect = setInterval(() => {
+                if (state.peer && !state.peer.disconnected) {
+                    clearInterval(checkReconnect);
+                    if (els.reconnectOverlay) { els.reconnectOverlay.classList.add('hidden'); els.reconnectOverlay.classList.remove('flex'); }
+                }
+            }, 2000);
+
+            if (state.reconnectTimeout) clearTimeout(state.reconnectTimeout);
+            state.reconnectTimeout = setTimeout(() => {
+                clearInterval(checkReconnect);
+                if (state.peer && state.peer.disconnected) {
+                    alert("Ağ bağlantınız kalıcı olarak koptu. İnternetinizi kontrol edip tekrar giriniz.");
+                    window.location.reload();
+                }
+            }, 45000); // 45 sn tolerans
+        }
+
         async function loadConfig() {
             try { const response = await fetch('config.json'); if (response.ok) { config = { ...config, ...await response.json() }; } } catch (e) {}
             document.title = config.appTitle; if(els.appTitle) els.appTitle.innerText = config.appTitle; if(els.welcomeMsg) els.welcomeMsg.innerText = "Platforma Hoş Geldiniz"; if(els.nickInput) els.nickInput.placeholder = `Örn: ${config.teacherName}`;
@@ -675,7 +707,6 @@
             }
             state.localStream = stream;
             
-            // KESİN ÇÖZÜM 1: LOBİDEKİ KAMERA EKRANI ASLA DURDURULMAZ, ASLA SİLİNMEZ.
             if(els.localPreview) { 
                 els.localPreview.srcObject = stream; 
                 els.localPreview.muted = true; 
@@ -762,6 +793,7 @@
                             state.toolTimerCalls.forEach(c => c.close()); state.toolTimerCalls = [];
                             document.getElementById('vid-tool-timer')?.remove();
                             if(state.mainSpeakerId === 'vid-tool-timer') { state.mainSpeakerId = autoSelectMainSpeaker(); applyLayout(); }
+                            if (state.peer) broadcastData({ type: 'stop-timer', peerId: state.peer.id });
                         }
                     } else {
                         const m = String(Math.floor(remain / 60000)).padStart(2, '0'); const s = String(Math.floor((remain % 60000) / 1000)).padStart(2, '0');
@@ -878,90 +910,6 @@
             document.querySelectorAll('video').forEach(vid => { if(vid.id !== 'local-preview' && !vid.closest('#vid-me')) vid.volume = state.globalVolume / 100; });
         });
 
-        function togglePeerVideoPlaceholder(peerId, isEnabled) {
-            const container = document.getElementById(`vid-${peerId}`);
-            if (container) {
-                const placeholder = container.querySelector('.cam-placeholder');
-                if (placeholder) {
-                    if (isEnabled) { placeholder.style.display = 'none'; container.classList.remove('cam-off'); } 
-                    else { placeholder.style.display = 'flex'; container.classList.add('cam-off'); }
-                }
-            }
-        }
-
-        function togglePeerMicIndicator(peerId, isEnabled) {
-            const container = document.getElementById(`vid-${peerId}`);
-            if (container) {
-                const micIcon = container.querySelector('.mic-off-indicator');
-                if (micIcon) { if (isEnabled) micIcon.classList.add('hidden'); else micIcon.classList.remove('hidden'); }
-            }
-        }
-
-        window.forceMute = (peerId, target) => {
-            if(!state.isTeacher) return; const conn = state.dataConnections[peerId];
-            if (conn && conn.open) { conn.send({ type: 'force-mute', target: target }); }
-        };
-
-        function updateParticipantsList(id, name, isTeacherPeer) {
-            if (state.participants.some(p => p.id === id)) return;
-            state.participants.push({ id, name, isTeacherPeer }); renderParticipants();
-        }
-
-        function removeParticipant(id) {
-            const exists = state.participants.find(p => p.id === id);
-            if (exists) { playSound('leave'); state.participants = state.participants.filter(p => p.id !== id); renderParticipants(); }
-        }
-
-        function renderParticipants() {
-            if(els.pCount) els.pCount.innerText = state.participants.length;
-            if(els.pList) els.pList.innerHTML = '';
-            state.participants.forEach(p => {
-                const item = document.createElement('div'); item.className = 'flex items-center justify-between bg-white/5 p-2 rounded-lg text-xs mb-1';
-                const left = document.createElement('div'); left.className = 'flex items-center gap-2';
-                left.innerHTML = `<i class="fas fa-user-circle text-gray-400"></i> <span>${p.name} ${p.id === 'me' ? '(Sen)' : ''}</span>`;
-                item.appendChild(left);
-                
-                if (state.isTeacher && p.id !== 'me') {
-                    const menu = document.createElement('div'); menu.className = 'relative group';
-                    menu.innerHTML = `
-                        <button class="px-2 py-1 text-gray-400 hover:text-white transition" onclick="toggleParticipantMenu('${p.id}', event)"><i class="fas fa-ellipsis-v"></i></button>
-                        <div id="part-menu-${p.id}" class="dropdown-menu absolute right-0 mt-1 w-36 bg-gray-800 rounded-md shadow-2xl z-50 border border-gray-600 flex-col overflow-hidden">
-                            <button onclick="forceMute('${p.id}', 'mic')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-gray-700 transition"><i class="fas fa-microphone-slash w-4 text-center text-red-400 mr-1"></i> Sesi Kapat</button>
-                            <button onclick="forceMute('${p.id}', 'cam')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-gray-700 transition"><i class="fas fa-video-slash w-4 text-center text-red-400 mr-1"></i> Kamerayı Kapat</button>
-                            <button onclick="kickUser('${p.id}')" class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-gray-700 border-t border-gray-700 transition"><i class="fas fa-sign-out-alt w-4 text-center mr-1"></i> Dersten At</button>
-                        </div>
-                    `;
-                    item.appendChild(menu);
-                } else if (!state.isTeacher && p.id !== 'me') {
-                    if (state.studentFocusStatus[p.id] === 'away') {
-                        const statusIcon = document.createElement('div');
-                        statusIcon.innerHTML = `<i class="fas fa-eye-slash text-red-500" title="Dersten Koptu"></i>`;
-                        item.appendChild(statusIcon);
-                    }
-                }
-                if(els.pList) els.pList.appendChild(item);
-            });
-        }
-
-        window.kickUser = (peerId) => {
-            if(!confirm("Kullanıcı atılsın mı?")) return;
-            const conn = state.dataConnections[peerId];
-            if (conn && conn.open) conn.send({ type: 'kick' });
-            if (state.activeCalls[peerId]) state.activeCalls[peerId].close();
-            
-            const pId = `vid-${peerId}`; document.getElementById(pId)?.remove();
-            if(state.mainSpeakerId === pId) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
-            applyLayout(); removeParticipant(peerId);
-        };
-
-        window.toggleParticipantMenu = (peerId, event) => {
-            event.stopPropagation();
-            document.querySelectorAll('.dropdown-menu.show, .dropdown-menu.show-col').forEach(m => {
-                if (m.id !== `part-menu-${peerId}` && m.id !== 'emoji-dropdown') { m.classList.remove('show'); m.classList.remove('show-col'); }
-            });
-            const menu = document.getElementById(`part-menu-${peerId}`); if (menu) menu.classList.toggle('show-col');
-        };
-
         // --- TAM GÜVENLİ VE HIZLI BAĞLANTI SİSTEMİ ---
         async function startSession(asTeacher) {
             initAudio(); 
@@ -1001,23 +949,30 @@
             addVideo(state.localStream, `${nickVal} (Sen)`, true, 'me', false);
             togglePeerVideoPlaceholder('me', state.isCamOn); togglePeerMicIndicator('me', state.isMicOn);
 
-            // KESİN ÇÖZÜM 1: ÇAKISMASIZ TEKİL KİMLİKLER
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
-            const hostId = `${prefix}_${roomVal}_HOST`;
+            const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+            let myId = asTeacher ? `${prefix}_${appIdStr}_${roomVal}_HOST` : `${prefix}_${appIdStr}_${roomVal}_GUEST_${Math.random().toString(36).substr(2, 6)}`;
 
-            try { 
-                // KESİN ÇÖZÜM 2: ÖĞRENCİ SERBEST VE ÇIPLAK BAĞLANSIN Kİ ASLA KİLİTLENMESİN
-                state.peer = asTeacher ? new Peer(hostId) : new Peer(); 
-            } 
+            try { state.peer = new Peer(myId); } 
             catch(e) { alert("İletişim motoru başlatılamadı. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); return; }
 
-            state.peer.on('open', (id) => {
-                if (asTeacher) { 
-                    if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.className = "text-[10px] text-green-400 font-bold ml-1"; } 
-                } 
-                else { 
-                    connectToHostForAuth(hostId, btn, btnText, originalText); 
+            // YENİ: KOPMA DURUMUNDA GÜVENLİ YENİDEN BAĞLANMA
+            state.peer.on('disconnected', () => {
+                if (state.peer && !state.peer.destroyed) {
+                    if (!els.room.classList.contains('hidden')) {
+                        handleDisconnection();
+                    } else {
+                        state.peer.reconnect();
+                    }
                 }
+            });
+
+            state.peer.on('open', (id) => {
+                if(els.reconnectOverlay) { els.reconnectOverlay.classList.add('hidden'); els.reconnectOverlay.classList.remove('flex'); }
+                if(state.reconnectTimeout) clearTimeout(state.reconnectTimeout);
+
+                if (asTeacher) { if(els.status) { els.status.innerText = "Ders Başlatıldı"; els.status.className = "text-[10px] text-green-400 font-bold ml-1"; } } 
+                else { connectToHostForAuth(`${prefix}_${appIdStr}_${roomVal}_HOST`, btn, btnText, originalText); }
             });
 
             state.peer.on('connection', (conn) => {
@@ -1033,7 +988,6 @@
                 });
                 conn.on('close', () => { 
                     if(state.waitingUsers[conn.peer]) { delete state.waitingUsers[conn.peer]; renderWaitingList(); }
-                    // Öğrenci sekme kapattığında listelerden ve ekrandan anında silinmesi garantisi:
                     removeParticipant(conn.peer);
                     const pCard = document.getElementById(`vid-${conn.peer}`); if (pCard) pCard.remove();
                     if (state.mainSpeakerId === `vid-${conn.peer}`) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
@@ -1064,38 +1018,57 @@
             state.peer.on('error', (err) => {
                 if(err.type === 'unavailable-id') {
                     if (state.isTeacher) { 
-                        // KESİN ÇÖZÜM 3: KISIR DÖNGÜ YERİNE AÇIK İKAZ
                         alert(`DİKKAT: "${roomVal}" isimli oda bir önceki oturumdan dolayı arka planda hala kilitli durumda. Lütfen oda kodunuzun sonuna bir sayı ekleyerek (Örn: ${roomVal}1) yepyeni bir oda kurun.`);
                         resetUI(btn, btnText, originalText); 
-                    }
+                    } else { alert("Oda kimliği çakışması. Lütfen sayfayı yenileyin."); resetUI(btn, btnText, originalText); }
                 } else if (err.type === 'peer-unavailable') {
                     if (!state.isTeacher) { 
-                        alert("Öğretmeniniz henüz odayı kurmamış veya dersten ayrılmış. Lütfen öğretmenin odayı kurduğundan emin olun."); 
-                        resetUI(btn, btnText, originalText); 
+                        if (!state.retryCount) state.retryCount = 0; state.retryCount++;
+                        if (state.retryCount <= 3) {
+                            if(els.status) els.status.innerText = `Öğretmen aranıyor (${state.retryCount}/3)...`;
+                            setTimeout(() => {
+                                const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                                const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                                connectToHostForAuth(`${prefix}_${appIdStr}_${state.roomName}_HOST`, btn, btnText, originalText); 
+                            }, 2000);
+                        } else {
+                            alert("Öğretmen odadan ayrılmış veya ders henüz başlamamış."); window.location.href = "https://www.matota.online"; 
+                        }
+                    } else { resetUI(btn, btnText, originalText); }
+                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'webrtc') {
+                    // YENİ: DERSTEYKEN ANINDA ATMAMASI İÇİN YÖNLENDİRME
+                    if (!els.room.classList.contains('hidden')) {
+                        handleDisconnection();
+                    } else {
+                        alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin."); resetUI(btn, btnText, originalText);
                     }
                 } else {
-                    alert("Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin."); resetUI(btn, btnText, originalText);
+                    if (!els.room.classList.contains('hidden')) {
+                        handleDisconnection();
+                    } else {
+                        alert("Beklenmeyen bir bağlantı hatası oluştu."); resetUI(btn, btnText, originalText);
+                    }
                 }
             });
         }
 
-        // KESİN ÇÖZÜM 4: ÖĞRENCİ BAĞLANTISININ ASKIYA ALINMASINI ENGELLEYEN SADE VE GARANTİLİ YAPI
         function connectToHostForAuth(hostId, btn, btnText, originalText, password = null) {
+            if (!state.retryCount) state.retryCount = 0;
             const conn = state.peer.connect(hostId, { reliable: true });
             
-            if(els.status) els.status.innerText = "Öğretmene Ulaşılıyor...";
+            if(els.status) els.status.innerText = state.retryCount > 0 ? `Bağlantı Tazeleniyor (${state.retryCount}/3)...` : "Doğrulanıyor...";
             
             clearTimeout(state.hostWatchdog);
             state.hostWatchdog = setTimeout(() => {
-                if(els.status && els.status.innerText === "Öğretmene Ulaşılıyor...") {
-                    alert("Öğretmene ulaşılamadı. Ders henüz başlamamış veya bağlantınız engelleniyor olabilir.");
-                    resetUI(btn, btnText, originalText);
+                if(els.status && (els.status.innerText.includes("Doğrulanıyor") || els.status.innerText.includes("Tazeleniyor") || els.status.innerText.includes("aranıyor"))) {
+                    state.retryCount++;
+                    if (state.retryCount <= 3) { connectToHostForAuth(hostId, btn, btnText, originalText, password); } 
+                    else { alert("Öğretmene ulaşılamadı. Ders henüz başlamamış veya ağ engeli olabilir."); resetUI(btn, btnText, originalText); }
                 }
-            }, 8000);
+            }, 6000);
             
             conn.on('open', () => { 
-                clearTimeout(state.hostWatchdog);
-                if(els.status) els.status.innerText = "Doğrulanıyor...";
+                clearTimeout(state.hostWatchdog); state.retryCount = 0;
                 conn.send({ type: 'join-request', name: state.nickname, password: password, peerId: state.peer.id }); 
             });
 
@@ -1119,6 +1092,8 @@
                     call.on('stream', (remoteStream) => {
                         const tName = data.teacherName || "Öğretmen";
                         addVideo(remoteStream, tName, false, hostId, false); updateParticipantsList(hostId, tName, true);
+                        if(state.videoFilter !== 'none') conn.send({ type: 'set-filter', filter: state.videoFilter });
+                        broadcastData({ type: 'mirror-status', isMirrored: state.isMirrorMode });
                     });
                     call.on('close', () => { alert("Öğretmen dersi sonlandırdı. Ana sayfaya yönlendiriliyorsunuz..."); window.location.href = "https://www.matota.online"; });
                     state.activeCalls[hostId] = call;
@@ -1129,7 +1104,8 @@
         on(els.btnSubmitPassword, 'click', () => {
             if(!els.meetingPasswordInput) return; const pwd = els.meetingPasswordInput.value;
             const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA";
-            connectToHostForAuth(`${prefix}_${state.roomName}_HOST`, null, null, null, pwd);
+            const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+            connectToHostForAuth(`${prefix}_${appIdStr}_${state.roomName}_HOST`, null, null, null, pwd);
         });
 
         function resetButton(btn, txtEl, originalTxt) { if(btn) btn.classList.remove('btn-loading'); if(txtEl) txtEl.innerHTML = originalTxt; }
@@ -1139,7 +1115,7 @@
             if(els.room) els.room.classList.add('hidden');
             resetButton(btn, txtEl, originalTxt); 
             
-            clearTimeout(state.hostWatchdog);
+            clearTimeout(state.hostWatchdog); state.retryCount = 0;
             if(state.peer) { state.peer.destroy(); state.peer = null; }
             if(state.pomodoroInterval) clearInterval(state.pomodoroInterval);
             if(els.timer) { els.timer.classList.add('hidden'); els.timer.innerText = "00:00:00"; }
@@ -1295,7 +1271,8 @@
             if(state.isTeacher) { broadcastData(msgObj); } 
             else { 
                 const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                const hostId = `${prefix}_${state.roomName}_HOST`; 
+                const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                 if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send(msgObj); 
             }
             els.chatInput.value = '';
@@ -1311,7 +1288,8 @@
                 if(state.isTeacher) { broadcastData({ type: 'edit-chat', id: id, text: newText.trim() }); }
                 else { 
                     const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                    const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'edit-chat', id: id, text: newText.trim() }); 
                 }
             }
@@ -1323,7 +1301,8 @@
                 if(state.isTeacher) { broadcastData({ type: 'delete-chat', id: id }); }
                 else { 
                     const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                    const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'delete-chat', id: id }); 
                 }
             }
@@ -1388,7 +1367,8 @@
                 if(state.isTeacher) broadcastData({ type: 'emoji', emoji: emoji, sender: state.nickname });
                 else { 
                     const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                    const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'emoji', emoji: emoji, sender: state.nickname }); 
                 }
             });
@@ -1399,7 +1379,8 @@
             if(state.isTeacher) broadcastData({ type: 'raise-hand', sender: state.nickname });
             else { 
                 const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                const hostId = `${prefix}_${state.roomName}_HOST`; 
+                const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                 if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'raise-hand', sender: state.nickname }); 
             }
         });
@@ -1442,6 +1423,7 @@
             if(id !== 'me') video.volume = state.globalVolume / 100;
         }
 
+        // --- YENİ BEYAZ TAHTA ÇİZİM VE KİLİT YÖNETİMİ ---
         function initWhiteboard() {
             if (!wbCtx || !els.wbCanvas) return;
             els.wbCanvas.width = 1920; els.wbCanvas.height = 1080; wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round'; clearWhiteboard(true);
@@ -1474,13 +1456,16 @@
 
         function drawLineOnCanvas(x0, y0, x1, y1, color, size, emit) {
             wbCtx.beginPath(); wbCtx.moveTo(x0, y0); wbCtx.lineTo(x1, y1);
-            wbCtx.globalCompositeOperation = 'source-over'; wbCtx.lineWidth = size; wbCtx.strokeStyle = color === 'eraser' ? '#ffffff' : color; 
+            wbCtx.globalCompositeOperation = 'source-over'; wbCtx.lineWidth = size; 
+            wbCtx.strokeStyle = color === 'eraser' ? '#ffffff' : color; 
             wbCtx.stroke(); wbCtx.closePath();
             if (emit) {
                 const data = { type: 'wb-draw', x0, y0, x1, y1, color: color, size };
                 if(state.isTeacher) broadcastData(data); 
                 else { 
-                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send(data); 
                 }
             }
@@ -1491,7 +1476,9 @@
             if (emit) { 
                 if(state.isTeacher) broadcastData({ type: 'wb-clear' }); 
                 else { 
-                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'wb-clear' }); 
                 } 
             }
@@ -1504,7 +1491,9 @@
             if (emit) { 
                 if(state.isTeacher) broadcastData({ type: 'wb-grid', enabled: enable }); 
                 else { 
-                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'wb-grid', enabled: enable }); 
                 } 
             }
@@ -1515,7 +1504,9 @@
             if (emit) { 
                 if(state.isTeacher) broadcastData({ type: 'wb-open' }); 
                 else { 
-                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'wb-open' }); 
                 } 
             }
@@ -1526,7 +1517,9 @@
             if (emit) { 
                 if(state.isTeacher) broadcastData({ type: 'wb-close' }); 
                 else { 
-                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; const hostId = `${prefix}_${state.roomName}_HOST`; 
+                    const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`; 
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) state.dataConnections[hostId].send({ type: 'wb-close' }); 
                 } 
             }
@@ -1669,7 +1662,6 @@
         on(els.btnApproveLeave, 'click', () => {
             if(state.currentLeaveRequestPeerId && state.dataConnections[state.currentLeaveRequestPeerId] && state.dataConnections[state.currentLeaveRequestPeerId].open) {
                 state.dataConnections[state.currentLeaveRequestPeerId].send({type: 'leave-approved'});
-                // Öğrencinin interneti koparsa diye yedek temizleme garantisi:
                 setTimeout(() => {
                     removeParticipant(state.currentLeaveRequestPeerId);
                     const pCard = document.getElementById(`vid-${state.currentLeaveRequestPeerId}`); if (pCard) pCard.remove();
@@ -1697,7 +1689,8 @@
             } else {
                 if (confirm("Dersten ayrılmak için öğretmeninize izin isteği gönderilecektir. Onaylıyor musunuz?")) {
                     const prefix = config.teacherName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || "HOCA"; 
-                    const hostId = `${prefix}_${state.roomName}_HOST`;
+                    const appIdStr = typeof __app_id !== 'undefined' ? String(__app_id).replace(/[^a-zA-Z0-9]/g, '').substring(0, 6) : 'APP';
+                    const hostId = `${prefix}_${appIdStr}_${state.roomName}_HOST`;
                     if(state.dataConnections[hostId] && state.dataConnections[hostId].open) { state.dataConnections[hostId].send({type: 'leave-request', name: state.nickname, peerId: state.peer.id}); alert("İzin isteği öğretmeninize gönderildi. Lütfen bekleyin."); } 
                     else { window.location.href = "https://www.matota.online"; }
                 }
