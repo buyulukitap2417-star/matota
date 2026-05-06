@@ -491,7 +491,6 @@
     </div>
 
     <script>
-        // --- GÜVENLİK VE ETKİLEŞİM KALKANLARI ---
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('selectstart', event => {
             if(event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') event.preventDefault();
@@ -524,7 +523,8 @@
             localPreview: document.getElementById('local-preview'), nickInput: document.getElementById('nickname-input'), roomInput: document.getElementById('room-input'), roomHint: document.getElementById('room-hint'),
             nickContainer: document.getElementById('nickname-container'), roomContainer: document.getElementById('room-container'), personalizedWelcome: document.getElementById('personalized-welcome'),
             appTitle: document.getElementById('app-title-display'), welcomeMsg: document.getElementById('welcome-msg-display'), btnGroup: document.getElementById('button-group'),
-            btnCreate: document.getElementById('create-btn'), btnJoin: document.getElementById('join-btn'), btnMic: document.getElementById('toggle-mic'), btnCam: document.getElementById('toggle-cam'),
+            btnCreate: document.getElementById('create-btn'), btnJoin: document.getElementById('join-btn'), btnCreateText: document.getElementById('btn-create-text'), btnJoinText: document.getElementById('btn-join-text'),
+            btnMic: document.getElementById('toggle-mic'), btnCam: document.getElementById('toggle-cam'),
             prevMic: document.getElementById('prev-mic-btn'), prevCam: document.getElementById('prev-cam-btn'), btnScreen: document.getElementById('share-screen'), btnLeave: document.getElementById('leave-btn'),
             btnEmoji: document.getElementById('btn-emoji'), btnRaiseHand: document.getElementById('btn-raise-hand'), btnToggleLayout: document.getElementById('btn-toggle-layout'),
             btnToggleChat: document.getElementById('btn-toggle-chat'), btnToggleParticipants: document.getElementById('btn-toggle-participants'), btnCloseChat: document.getElementById('btn-close-chat'), btnCloseParticipants: document.getElementById('btn-close-participants'),
@@ -630,10 +630,8 @@
             }
         }
 
-        // KESİN ÇÖZÜM: BAĞLANTI KOPMA KURTARICI FONKSİYONU
         function handleDisconnection() {
             if (!state.peer || state.peer.destroyed) return;
-            // DERSTEN ATMA, BEKLEME EKRANINI AÇ
             if (els.reconnectOverlay) { els.reconnectOverlay.classList.remove('hidden'); els.reconnectOverlay.classList.add('flex'); }
             
             if (state.peer.disconnected) state.peer.reconnect();
@@ -649,11 +647,10 @@
             state.reconnectTimeout = setTimeout(() => {
                 clearInterval(checkReconnect);
                 if (state.peer && state.peer.disconnected) {
-                    // Sadece 45 saniye boyunca internet hiç gelmezse sayfayı yenile
                     alert("Ağ bağlantınız kalıcı olarak koptu. İnternetinizi kontrol edip tekrar giriniz.");
                     window.location.reload();
                 }
-            }, 45000); // 45 sn tolerans
+            }, 45000); 
         }
 
         async function loadConfig() {
@@ -1334,7 +1331,7 @@
                         const cols = Math.ceil(Math.sqrt(count)); const rows = Math.ceil(count / cols); const w = canvas.width / cols; const h = canvas.height / rows;
                         videoCards.forEach((card, i) => {
                             const vid = card.querySelector('video'); const c = i % cols; const r = Math.floor(i / cols);
-                            const f = card.id === 'vid-me' ? state.videoFilter : (state.peerFilters[card.id.replace('vid-','')] || 'none'); const m = card.id === 'vid-me' ? state.isMirrorMode : (state.peerMirrors[card.id.replace('vid-','')] || false);
+                            const f = card.id === 'vid-me' ? state.videoFilter : (state.peerFilters[card.id.replace('vid-','')] || 'none'); const m = card.id === 'vid-me' ? state.isMirrorMode : (state.peerMirrors[card.id.replace('vid-me', '')] || false); // Fixed replacing
                             if(vid) { drawVideoCover(ctx, vid, c*w, r*h, w, h, f, m); drawNameTag(ctx, card, c*w, r*h, w, h); }
                         });
                     }
@@ -1388,50 +1385,6 @@
                     state.participants.forEach(p => { if (p.id !== 'me') { const call = state.peer.call(p.id, shareStream, { metadata: { type: 'screen' } }); state.screenCalls.push(call); } });
                 } catch (err) {}
             }
-        });
-
-        window.toggleAudio = () => {
-            if (!state.localStream) return; const tracks = state.localStream.getAudioTracks();
-            if (tracks.length > 0) { tracks[0].enabled = !tracks[0].enabled; state.isMicOn = tracks[0].enabled; } else { state.isMicOn = false; }
-            updateButtonUI(els.btnMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash'); if(els.prevMic) updateButtonUI(els.prevMic, state.isMicOn, 'fa-microphone', 'fa-microphone-slash');
-            togglePeerMicIndicator('me', state.isMicOn); broadcastData({ type: 'mic-status', enabled: state.isMicOn });
-        }
-
-        window.toggleVideo = () => {
-            if (!state.localStream) return; const tracks = state.localStream.getVideoTracks();
-            if (tracks.length > 0) { tracks[0].enabled = !tracks[0].enabled; state.isCamOn = tracks[0].enabled; } else { state.isCamOn = false; }
-            updateButtonUI(els.btnCam, state.isCamOn, 'fa-video', 'fa-video-slash'); if(els.prevCam) updateButtonUI(els.prevCam, state.isCamOn, 'fa-video', 'fa-video-slash');
-            togglePeerVideoPlaceholder('me', state.isCamOn); broadcastData({ type: 'cam-status', enabled: state.isCamOn });
-        }
-
-        on(els.btnCreate, 'click', () => { initAudio(); startSession(true); }); on(els.btnJoin, 'click', () => { initAudio(); startSession(false); });
-        on(els.btnMic, 'click', window.toggleAudio); on(els.prevMic, 'click', window.toggleAudio);
-        on(els.btnCam, 'click', window.toggleVideo); on(els.prevCam, 'click', window.toggleVideo);
-        
-        on(els.btnCopyLink, 'click', () => { const url = `${window.location.origin}${window.location.pathname}?room=${state.roomName}&role=2s4t3`; navigator.clipboard.writeText(url); alert("Öğrenci Katılım Linki Kopyalandı!"); });
-
-        on(document.getElementById('btn-end-break-early'), 'click', () => { stopPomodoro(true); });
-
-        on(els.btnApproveLeave, 'click', () => {
-            if(state.currentLeaveRequestPeerId && state.dataConnections[state.currentLeaveRequestPeerId] && state.dataConnections[state.currentLeaveRequestPeerId].open) {
-                state.dataConnections[state.currentLeaveRequestPeerId].send({type: 'leave-approved'});
-                setTimeout(() => {
-                    removeParticipant(state.currentLeaveRequestPeerId);
-                    const pCard = document.getElementById(`vid-${state.currentLeaveRequestPeerId}`); if (pCard) pCard.remove();
-                    if (state.mainSpeakerId === `vid-${state.currentLeaveRequestPeerId}`) { state.mainSpeakerId = autoSelectMainSpeaker(); if(!state.mainSpeakerId) state.layoutMode = 'grid'; }
-                    applyLayout();
-                }, 2000);
-            }
-            if(els.leaveRequestModal) { els.leaveRequestModal.classList.add('hidden'); els.leaveRequestModal.classList.remove('flex'); }
-            state.currentLeaveRequestPeerId = null;
-        });
-
-        on(els.btnDenyLeave, 'click', () => {
-            if(state.currentLeaveRequestPeerId && state.dataConnections[state.currentLeaveRequestPeerId] && state.dataConnections[state.currentLeaveRequestPeerId].open) {
-                state.dataConnections[state.currentLeaveRequestPeerId].send({type: 'leave-denied'});
-            }
-            if(els.leaveRequestModal) { els.leaveRequestModal.classList.add('hidden'); els.leaveRequestModal.classList.remove('flex'); }
-            state.currentLeaveRequestPeerId = null;
         });
 
         on(els.btnLeave, 'click', () => { 
